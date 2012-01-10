@@ -1,0 +1,10 @@
+export(
+bcrm,
+Posterior.exact,
+Posterior.BRugs,
+Posterior.R2WinBUGS
+)
+
+S3method(print, bcrm)
+S3method(print,bcrm.sim)
+S3method(plot, bcrm)
