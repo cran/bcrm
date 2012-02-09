@@ -8,11 +8,14 @@ Plot the estimated dose-toxicity curve
 The estimated dose-toxicity curve using the Bayesian continuous reassessment method is plotted for the patients thus far recruited into the trial
 }
 \usage{
-\method{plot}{bcrm}(x, \ldots)
+\method{plot}{bcrm}(x, file = NULL, \ldots)
 }
 \arguments{
   \item{x}{
 	An object of class "bcrm", as returned by \code{\link{bcrm}}
+}
+  \item{file}{
+File name where the dose-response plots are stored, in a pdf format. The program will ammend the current sample size to the end of the file name.
 }
  \item{...}{Further arguments passed to or from other methods}
 }

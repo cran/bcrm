@@ -2,7 +2,7 @@
 \alias{bcrm}
 
 \title{
-Bayesian continuous reasssessment method (CRM) designs for Phase I dose escalation trials.
+Bayesian continuous reassessment method (CRM) designs for Phase I dose escalation trials.
 }
 \description{
 Implements a wide variety of Bayesian CRM designs, including 1-parameter, 2-parameter and Escalation With Overdose Control (EWOC) designs. The program can run interactively, allowing the user to enter outcomes after each cohort has been recruited, or via simulation to assess operating characteristics.
@@ -10,9 +10,9 @@ Implements a wide variety of Bayesian CRM designs, including 1-parameter, 2-para
 \usage{
 bcrm(N, tox = NULL, notox = NULL, p.tox0 = NULL, sdose = NULL, dose = NULL, 
      ff, prior.alpha, cohort = 3, target.tox, constrain = TRUE,
-     sdose.calculate = "mean", pointest = "plugin", start = NULL, 
-     simulate = FALSE, nsims = 1, truep = NULL, method = "exact", 
-     burnin.itr = 2000, production.itr = 2000,
+     sdose.calculate = "mean", pointest = "plugin", tox.cutpoints = NULL,
+	loss = NULL, start = NULL, simulate = FALSE, nsims = 1, truep = NULL, 
+	method = "exact", burnin.itr = 2000, production.itr = 2000,
      bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, file = NULL)
 }
 
@@ -69,6 +69,12 @@ What plug-in estimate of the prior alpha should be used to calculate the standar
   \item{pointest}{
 Which summary estimate of the posterior distribution should be used to choose the next dose. Options are \code{"plugin"} (default) where the posterior mean of the model parameter(s) is plugged into the function form to obtain estimates of toxicity, or \code{"mean"} where the posterior mean probabilities of toxicity are directly used. Alternatively, a number between 0 and 1 can be specified representing the quantile of the maximum tolerated dose (MTD) posterior distribution (e.g. 0.5 specifies the posteior median). This produces an Escalation With Overdose Control (EWOC) design if the quantile is less than 0.5 (see details). Currently, EWOC designs must be fit using MCMC methods.
 }
+  \item{tox.cutpoints}{
+A vector of cutpoints for toxicity intervals if these are to be used to choose next dose. Defaults to NULL. For example Underdosing [0,0.2], Target dosing (0.2, 0.35], Excessive toxicity (0.35, 0.60], Unacceptable toxicity (0.60, 1.00] set \code{tox.cutpoints=c(0.2,0.35,0.60)}. 
+}
+  \item{loss}{
+A vector of length \code{length(tox.cutpoints)+1} specifying the losses associated with each toxicity interval, e.g. Underdosing = 1, Target dosing =0, Excessive toxicity=1, Unacceptable toxicity=2
+}
   \item{start}{
 Dose level used at the beginning of the trial, or if data have been provided using \code{tox} and \code{notox} this is the current dose level for the last treated cohort. Required if \code{constrain=TRUE}.
 }
@@ -97,11 +103,13 @@ Directory that contains the WinBUGS executable if \code{method="R2WinBUGS"}. Def
 Should the dose-response curve be plotted after each cohort has been entered? Defaults to FALSE.
 }
   \item{file}{
-File name where the dose-response plots are stored, in a pdf format.
+File name where the dose-response plots are stored, in a pdf format. The program will ammend the current sample size to the end of the file name.
 }
 }
 \details{
 	\code{bcrm} implements a Bayesian continuous reassessment method (CRM) (O'Quigley \emph{et al.}, 1990); an adaptive design in which cohorts of patients are sequentially recruited into a Phase I trial. A binary toxicity outcome is assumed (e.g. Dose Limiting Toxicity / No Dose Limiting Toxicity). The current cohort are given a dose "closest" to the specified target toxicity level, as estimated from the posterior distributions of toxicity at each dose level from the patients thus far recruited. If \code{pointest="mean"} then the posterior mean probability of toxicity is used to choose the next dose. If \code{pointest="plugin"}, however, the posterior mean of the model parameter(s) is plugged-into the functional form of the dose-toxicity model. To implement an EWOC design (Babb \emph{et al.}, 1998), \code{pointest} should be a quantile, \emph{q}, between 0 and 0.5. The posterior distribution of the MTD (the dose in which the probability of toxicity is equal to the target toxicity) is then calculated and the next patient is given dose closest to the \emph{q}th quantile of the MTD distribution. 
+
+Alternatively, escalation can be based on intervals of toxicity from the posterior distribution using a loss function, see Neuenschwander \emph{et al.}, 2008. To implement this approach, the user should specify the cutpoints of the toxicity intervals using \code{tox.cutpoints} and the associated losses using \code{loss}.
 
 The possible choice of dose-toxicity model can be specified using \code{ff}, and includes the 1-parameter hyberbolic tangent, logistic or power "working models", and the 2-parameter logistic model as follows:
 \describe{
@@ -161,10 +169,12 @@ Currently, the re-parameterisation of the two-parameter model proposed by (Babb 
 	prior.alpha<-list(1,1,1)
 	ff<-"ht"
 	target.tox<-0.2
-	samples.alpha<-bcrm:::getprior(prior.alpha,2000)
-	mtd<-bcrm:::find.x(ff,ptox=target.tox,alpha=samples.alpha)
+	samples.alpha<-getprior(prior.alpha,2000)
+	mtd<-find.x(ff,target.tox,alpha=samples.alpha)
 	hist(mtd)
 }
+
+One-parameter models are designed as working models only, and should not be used with an escalation strategy based on intervals of the posterior probabilities of toxicity.
 }
 
 \author{
@@ -206,5 +216,48 @@ Power.LN.bcrm.sim<-bcrm(N=36,p.tox0=p.tox0,dose=dose,ff="power"
   ,prior.alpha=list(3,0,1.34^2),target.tox=target.tox,constrain=TRUE
   ,sdose.calculate="median",pointest="mean",start=1,simulate=TRUE,nsims=10,truep=p.tox0)
 print(Power.LN.bcrm.sim)
+
+## A 2-parameter model, using priors as specified in Neuenschwander et al 2008.
+## Posterior mean used to choose the next dose
+## Standardised doses using reference dose, 250mg
+sdose<-log(dose/250)
+## Bivariate lognormal prior for two parameters
+mu<-c(2.15,0.52)
+Sigma<-rbind(c(0.84^2,0.134),c(0.134,0.80^2))
+TwoPLogistic.mean.bcrm<-bcrm(N=18,tox=tox,notox=notox,sdose=sdose,dose=dose,ff="logit2"
+  ,prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
+  ,pointest="mean",method="BRugs")
+print(TwoPLogistic.mean.bcrm)
+plot(TwoPLogistic.mean.bcrm)
+
+## A 2-parameter model, using an EWOC design with feasibility bound (MTD quantile) 
+## of 0.25 to choose the next dose
+TwoPLogistic.EWOC0.25.bcrm<-bcrm(N=18,tox=tox,notox=notox,sdose=sdose,dose=dose
+  ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
+  ,pointest=0.25,method="BRugs")
+print(TwoPLogistic.EWOC0.25.bcrm)
+plot(TwoPLogistic.EWOC0.25.bcrm)
+
+## A 2-parameter model, using a loss function based on intervals of toxicity to choose
+## the next dose
+## Toxicity cut-points
+tox.cutpoints<-c(0.2,0.35,0.6)
+## Losses associated with toxicity intervals 
+## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=1, (0.6,1]=2
+loss<-c(1,0,1,2)
+TwoPLogistic.tox.intervals.bcrm<-bcrm(N=18,tox=tox,notox=notox,sdose=sdose,dose=dose
+  ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
+  ,tox.cutpoints=tox.cutpoints,loss=loss,method="BRugs")
+print(TwoPLogistic.tox.intervals.bcrm)
+plot(TwoPLogistic.tox.intervals.bcrm)
+## Greater loss associated with overdosing and unacceptable toxicity
+## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=2, (0.6,1]=4
+loss2<-c(1,0,2,4)
+TwoPLogistic.tox.intervals.2.bcrm<-bcrm(N=18,tox=tox,notox=notox,sdose=sdose,dose=dose
+  ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
+  ,tox.cutpoints=tox.cutpoints,loss=loss2,method="BRugs")
+print(TwoPLogistic.tox.intervals.2.bcrm)
+plot(TwoPLogistic.tox.intervals.2.bcrm)
+
 
 }

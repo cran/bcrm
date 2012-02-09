@@ -1,5 +1,9 @@
-
-Version 0.1 (January 2012)
+Version 0.2 (9th February 2012)
 -------------
+* Implementation of escalation based on posterior toxicity intervals using loss functions, as described in Neuenschwander et al, 2008.
+* Fixed bug where posterior quantiles are occasionally incorrectly calculated using method="exact". This occurred because the space in which optimize searched for the quantile was sometimes too large and optimize did not find the correct minimum. The new release chooses the interval in which to search based on a priliminary grid search.
+* Fixed problem with `file' argument, where only the last of the two plots was saved.
 
+Version 0.1 (11th January 2012)
+-------------
 * First release. 

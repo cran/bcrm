@@ -2,7 +2,9 @@ export(
 bcrm,
 Posterior.exact,
 Posterior.BRugs,
-Posterior.R2WinBUGS
+Posterior.R2WinBUGS,
+getprior,
+find.x
 )
 
 S3method(print, bcrm)

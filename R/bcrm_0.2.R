@@ -1,7 +1,7 @@
 ## Bayesian CRM - extending original code of J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
-## Now using exact inference, R2WinBUGS and BRugs since BRugs is currently unavailable on CRAN 
+## Now using exact inference, R2WinBUGS and BRugs 
 
-### MJS 01/09/11
+### MJS 20/01/12
 
 # ----------------------------------------------------------------------
 # 	bcrm. Conduct a Bayesian CRM trial simulating outcomes from a true model
@@ -29,7 +29,9 @@
 #     target.tox --> target toxicity 
 # 	constrain --> TRUE (default) or FALSE
 #    sdose.calculate -> What plug-in estimate of the prior alpha should be used to calculate the standardised doses? Options are "mean" (default) or "median"
-# 	pointest   --> Which summary estimate of the posterior distribution should be used to choose next dose, "plugin" (default), "mean" or a numerical quantile between 0 and 1 (e.g. 0.5)
+# 	pointest   --> Which summary estimate of the posterior distribution should be used to choose next dose, "plugin" (default), "mean" or a numerical quantile between 0 and 1 (e.g. 0.5). If NULL then escalation based on posterior intervals (Loss function approach) is assumed
+#	tox.cutpoints --> Specify the cutpoints for toxicity intervals if these are to be used to choose next dose, e.g. Underdosing [0,0.2], Target dosing (0.2, 0.35], Excessive toxicity (0.35, 0.60], Unacceptable toxicity (0.60, 1.00]
+#	loss --> The losses associated with each toxicity interval, e.g. Underdosing = 1, Target dosing =0, Excessive toxicity=1, Unacceptable toxicity=2
 #     start      --> Starting dose level or if data is provided this is the current dose level for the last treated cohort. Required if constrain=TRUE
 #    simulate -->  Perform a simulation to assess operating characteristics (Default=TRUE). If FALSE, a single CRM trial is run interactively, allowing the user to input outcomes after each cohort is recruited?
 #    nsims	--> No. of simulations to perform if simulate==T (defaults to 1)
@@ -41,9 +43,11 @@
 #	plot	     --> Should dose response curve be plotted after each cohort is entered? Defaults to FALSE
 # 	file	     --> name of the file where the dose-response plots are stored, in a pdf format
 # ----------------------------------------------------------------------
-bcrm<-function(N,tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.alpha,cohort=3,target.tox,constrain=TRUE,sdose.calculate="mean",pointest="plugin",start=NULL,simulate=FALSE,nsims=1,truep=NULL,
+bcrm<-function(N,tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.alpha,cohort=3,target.tox,constrain=TRUE,sdose.calculate="mean",pointest="plugin",tox.cutpoints=NULL,loss=NULL,
+	start=NULL,simulate=FALSE,nsims=1,truep=NULL,
 	method="exact",burnin.itr=2000,production.itr=2000,bugs.directory="c:/Program Files/WinBUGS14/",plot=FALSE,file=NULL){
 
+	# Checks of argument inputs	
 	if(missing(p.tox0) & missing(sdose)) stop("Either p.tox0 or sdose must be specified")
 	if(!missing(p.tox0) & !missing(sdose)) stop("Only one of p.tox0 and sdose must be specified")
 	if(sdose.calculate!="mean" & sdose.calculate!="median") stop("sdose.calculate must be either `mean' or `median'")
@@ -55,10 +59,18 @@ bcrm<-function(N,tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.a
 		results<-list()
 	}
 	if(!(method %in% c("exact","BRugs","R2WinBUGS"))) stop("method must be either `exact', `BRugs' or `R2WinBUGS'")
+	## Check to see if ff is one of "ht","logit1","power","logit2"
+	if((!ff %in% c("ht","logit1","power","logit2"))) stop("ff must be one of `ht', `logit1', `power' or `logit2'")
+
+	if(ff=="logit2" & method=="exact") stop("Two parameter logistic model must be fit using MCMC. Please specify either method='BRugs' or method='R2WinBUGS'")
 	if(constrain & is.null(start)) stop("A starting/current dose level must be specified using `start' if constrain==TRUE")
-	## Changing functional form to numeric 
-  ff<-ifelse(ff=="ht",1,ifelse(ff=="logit1",2,ifelse(ff=="power",3,ifelse(ff=="logit2",4,stop("ff must be one of `ht', `logit1', `power' or `logit2'")))))
-  if(ff==4 & (length(prior.alpha[[2]])<2 | length(prior.alpha[[3]])<2)) stop("second and third components of `prior.alpha' must be vectors of size 2")
+	if((!is.null(tox.cutpoints) & is.null(loss)) | (is.null(tox.cutpoints) & !is.null(loss))) stop("Both tox.cutpoints and loss must be specified to conduct escalation based on toxicity intervals")
+	if(!is.null(tox.cutpoints) & length(loss)!=length(tox.cutpoints)+1) stop("The number of losses must be one more than the number of cutpoints")
+	if(!is.null(tox.cutpoints) & method=="exact") stop("Escalation based on toxicity intervals must be fit using MCMC. Please specify either method='BRugs' or method='R2WinBUGS'")
+	if(!is.null(tox.cutpoints)) pointest<-NULL
+	if(!is.null(tox.cutpoints) & ff!="logit2") warning("One-parameter models are designed as working models only, and should not be used with an escalation strategy based on intervals of the posterior probabilities of toxicity")
+
+     if(ff=="logit2" & (length(prior.alpha[[2]])<2 | length(prior.alpha[[3]])<2)) stop("second and third components of `prior.alpha' must be vectors of size 2")
 
 	if(missing(sdose)){
 		alpha.prior.plug<-if(prior.alpha[[1]]==1){
@@ -72,7 +84,8 @@ bcrm<-function(N,tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.a
 		} 		
 		sdose<-find.x(ff,p.tox0,alpha=alpha.prior.plug)
 	}
-
+	## Allowing access to fast exact computation if method="exact" & simulate=TRUE
+	if(method=="exact" & simulate){ method<-"exact.sim" }
 	k<-length(sdose)
 	sim<-1	
 	
@@ -82,28 +95,37 @@ bcrm<-function(N,tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.a
 			new.tox<- rep(0,k)
 			new.notox<-rep(0,k)
 			current<-start-1
-			alpha<-switch(method
+			alpha<-if(sim==1) switch(method
 			,BRugs=getprior(prior.alpha, 10000)
 			,R2WinBUGS=getprior(prior.alpha,10000)
-			,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha))
+			,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha)
+			,exact.sim=Posterior.exact.sim(new.tox,new.notox,sdose,ff,prior.alpha,pointest)
+			)
 		} else { 
 			new.tox<-tox
 			new.notox<-notox
 			current<-start 
-			alpha<-switch(method
+			alpha<-if(sim==1) switch(method
 			,BRugs=Posterior.BRugs(new.tox,new.notox,sdose,ff,prior.alpha,burnin.itr,production.itr)
 			,R2WinBUGS=Posterior.R2WinBUGS(new.tox,new.notox,sdose,ff,prior.alpha,burnin.itr,production.itr,bugs.directory)
 			,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha)
+			,exact.sim=Posterior.exact.sim(new.tox,new.notox,sdose,ff,prior.alpha,pointest)
 			)
 		}
 		ncurrent<-sum(new.tox+new.notox)
 		alldoses<-NULL
-		ndose<-if(method!="exact") nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current)
-				else nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
+		ndose<-if(sim==1){
+			switch(method
+				,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
+				,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
+				,exact=nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
+				,exact.sim=nextdose.exact.sim(alpha,sdose,ff,target.tox,constrain,pointest,current)
+				)
+		} else {list(results[[1]]$alldoses[1])}
 		if(plot){
-			dose.response.plot(new.tox,new.notox,dose,sdose,ff,target.tox,ndose)
-			if(!is.null(file))
-			ggsave(paste(file,ncurrent,".pdf",sep=""))
+			results<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,alpha=alpha,ndose=ndose,constrain=constrain,start=start,target.tox=target.tox,ff=ff,method=method,pointest=pointest,tox.cutpoints=tox.cutpoints,loss=loss,prior.alpha=prior.alpha,alldoses=alldoses)
+			class(results)<-"bcrm"
+			plot(results,file)
 		}
 		while(ncurrent<N){
 			current<-ndose[[1]]
@@ -112,7 +134,7 @@ bcrm<-function(N,tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.a
 			if(!simulate){
 				interact<-crm.interactive(new.tox,new.notox,ncurrent,cohort,ndose)
 				if(interact$bk==TRUE){
-					results<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,alpha=alpha,ndose=ndose,constrain=constrain,start=start,target.tox=target.tox,ff=ff,method=method,pointest=pointest,prior.alpha=prior.alpha,alldoses=alldoses)
+					results<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,alpha=alpha,ndose=ndose,constrain=constrain,start=start,target.tox=target.tox,ff=ff,method=method,pointest=pointest,tox.cutpoints=tox.cutpoints,loss=loss,prior.alpha=prior.alpha,alldoses=alldoses)
 					class(results)<-"bcrm"
 					return(results)
 				}
@@ -125,20 +147,27 @@ bcrm<-function(N,tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.a
 			alpha<-switch(method
 				,BRugs=Posterior.BRugs(new.tox, new.notox, sdose, ff, prior.alpha, burnin.itr, production.itr)
 				,R2WinBUGS=Posterior.R2WinBUGS(new.tox, new.notox, sdose, ff, prior.alpha, burnin.itr, production.itr,bugs.directory)
-				,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha))
-			ndose<-if(method!="exact") nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current)
-				else nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
+				,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha)
+				,exact.sim=Posterior.exact.sim(new.tox,new.notox,sdose,ff,prior.alpha,pointest)
+				)
+			ndose<-switch(method
+				,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
+				,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
+				,exact=nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
+				,exact.sim=nextdose.exact.sim(alpha,sdose,ff,target.tox,constrain,pointest,current)
+				)
+
 			if(plot){
-				dose.response.plot(new.tox,new.notox,dose,sdose,ff,target.tox,ndose)
-				if(!is.null(file))
-				ggsave(paste(file,ncurrent,".pdf",sep=""))
+				results<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,alpha=alpha,ndose=ndose,constrain=constrain,start=start,target.tox=target.tox,ff=ff,method=method,pointest=pointest,tox.cutpoints=tox.cutpoints,loss=loss,prior.alpha=prior.alpha,alldoses=alldoses)
+				class(results)<-"bcrm"
+				plot(results,file)
 			}
 		}
 		if(!simulate){
-			results<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,alpha=alpha,ndose=ndose,constrain=constrain,start=start,target.tox=target.tox,ff=ff,method=method,pointest=pointest,prior.alpha=prior.alpha,alldoses=alldoses)
+			results<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,alpha=alpha,ndose=ndose,constrain=constrain,start=start,target.tox=target.tox,ff=ff,method=method,pointest=pointest,tox.cutpoints=tox.cutpoints,loss=loss,prior.alpha=prior.alpha,alldoses=alldoses)
 			class(results)<-"bcrm"
 	    	} else {
-			results[[sim]]<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,ndose=ndose,constrain=constrain,target.tox=target.tox,start=start,method=method,pointest=pointest,prior.alpha=prior.alpha,alldoses=alldoses)
+			results[[sim]]<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,ndose=ndose,constrain=constrain,target.tox=target.tox,tox.cutpoints=tox.cutpoints,loss=loss,start=start,method=method,pointest=pointest,prior.alpha=prior.alpha,alldoses=alldoses)
 			class(results)<-"bcrm.sim"
 			cat(sim,"\n")
 		}
@@ -265,10 +294,10 @@ getprior <- function(prior.alpha, n) {
 #     notox       --> number of failed patients (no-toxicities)
 #     sdose       --> vector containing the dose level
 #     ff          --> the model applied in the study
-#                    1 - hyperbolic tangent
-#                    2 - logistic
-#                    3 - Power
-#				  4 - Two-parameter logistic
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#				  "logit2" - Two-parameter logistic
 #     prior.alpha  --> list of prior distribution information for parameter alpha
 #     burnin.itr  --> number of burn-in iterations
 #     production.itr --> number of production iterations
@@ -290,37 +319,37 @@ Posterior.BRugs <- function(tox, notox,sdose,ff, prior.alpha, burnin.itr, produc
     mydata <- list(N1 = k, s = datas,n = datan,d = datad, p1 = prior.alpha[[2]], p2 = prior.alpha[[3]])
     model.file<-if (prior.alpha[[1]] == 1)
     	{
-        if (ff == 1)
+        if (ff == "ht")
             HTGamma
-        else if (ff == 2)
+        else if (ff == "logit1")
             LogisticGamma
-        else if (ff == 3)
+        else if (ff == "power")
             PowerGamma
 	   else stop("Functional form not currently available with specified prior distribution")
     }
     else if (prior.alpha[[1]] == 2)
     {
-        if (ff == 1)
+        if (ff == "ht")
             HTUnif
-        else if (ff == 2)
+        else if (ff == "logit1")
             LogisticUnif
-        else if (ff == 3)
+        else if (ff == "power")
             PowerUnif
 	   else stop("Functional form not currently available with specified prior distribution")
     }        
     else if (prior.alpha[[1]] == 3)
     {
-        if (ff == 1)
+        if (ff == "ht")
             HTLogNormal
-        else if (ff == 2)
+        else if (ff == "logit1")
             LogisticLogNormal
-        else if (ff == 3)
+        else if (ff == "power")
             PowerLogNormal
 	   else stop("Functional form not currently available with specified prior distribution")
     }        
     else if (prior.alpha[[1]] == 4)
     {
-        if (ff == 4)
+        if (ff == "logit2")
 		TwoPLogisticLogNormal            
 	   else stop("Functional form not currently available with specified prior distribution")
     }    
@@ -330,7 +359,7 @@ Posterior.BRugs <- function(tox, notox,sdose,ff, prior.alpha, burnin.itr, produc
 	bugsData(mydata,path.data)
 	BRugsFit(path.model,path.data, inits=NULL, numChains = 2, parametersToSave="alpha",
 	    	nBurnin = burnin.itr, nIter = production.itr/2, BRugsVerbose = FALSE,DIC=F)
-	if(ff==4){
+	if(ff=="logit2"){
 		t<-cbind(samplesSample("alpha[1]"),samplesSample("alpha[2]"))
 	} else {   t<- samplesSample("alpha") }
     return(t)
@@ -344,10 +373,10 @@ Posterior.BRugs <- function(tox, notox,sdose,ff, prior.alpha, burnin.itr, produc
 #     notox       --> number of failed patients (no-toxicities)
 #     sdose       --> vector containing the dose level
 #     ff          --> the model applied in the study
-#                    1 - hyperbolic tangent
-#                    2 - logistic
-#                    3 - Power
-#				  4 - Two-parameter logistic
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#			   "logit2" - Two-parameter logistic
 #     prior.alpha  --> list of prior distribution information for parameter alpha
 #     burnin.itr  --> number of burn-in iterations
 #     production.itr --> number of production iterations
@@ -372,37 +401,37 @@ Posterior.R2WinBUGS <- function(tox, notox,sdose,ff, prior.alpha, burnin.itr, pr
     parameters<-"alpha"
     model.file<-if (prior.alpha[[1]] == 1)
     	{
-        if (ff == 1)
+        if (ff == "ht")
             HTGamma
-        else if (ff == 2)
+        else if (ff == "logit1")
             LogisticGamma
-        else if (ff == 3)
+        else if (ff == "power")
             PowerGamma
 	   else stop("Functional form not currently available with specified prior distribution")
     }
     else if (prior.alpha[[1]] == 2)
     {
-        if (ff == 1)
+        if (ff == "ht")
             HTUnif
-        else if (ff == 2)
+        else if (ff == "logit1")
             LogisticUnif
-        else if (ff == 3)
+        else if (ff == "power")
             PowerUnif
 	   else stop("Functional form not currently available with specified prior distribution")
     }        
     else if (prior.alpha[[1]] == 3)
     {
-        if (ff == 1)
+        if (ff == "ht")
             HTLogNormal
-        else if (ff == 2)
+        else if (ff == "logit1")
             LogisticLogNormal
-        else if (ff == 3)
+        else if (ff == "power")
             PowerLogNormal
 	   else stop("Functional form not currently available with specified prior distribution")
     }        
     else if (prior.alpha[[1]] == 4)
     {
-        if (ff == 4)
+        if (ff == "logit2")
 		TwoPLogisticLogNormal            
 	   else stop("Functional form not currently available with specified prior distribution")
     }    
@@ -430,10 +459,10 @@ Posterior.R2WinBUGS <- function(tox, notox,sdose,ff, prior.alpha, burnin.itr, pr
 #     notox       --> number of failed patients (no-toxicities)
 #     sdose       --> vector containing the dose level
 #     ff          --> the model applied in the study
-#                    1 - hyperbolic tangent
-#                    2 - logistic
-#                    3 - Power
-#				  4 - Two-parameter logistic
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#			   "logit2" - Two-parameter logistic
 #     prior.alpha  --> list of prior distribution information for parameter alpha
 # ----------------------------------------------------------------------
 Posterior.exact<-function(tox,notox,sdose,ff,prior.alpha){    
@@ -478,14 +507,77 @@ Posterior.exact<-function(tox,notox,sdose,ff,prior.alpha){
 
 		cdf<-function(par){integrate(int.norm.constant,ifelse(prior.alpha[[1]]==2,prior.alpha[[2]],0),par,dose=data.dose,tox=data.tox,notox=data.notox,prior.alpha=prior.alpha,rel.tol=.Machine$double.eps^0.5)[[1]]/norm.constant}
 		fn<-function(par,q){abs(cdf(par)-q)}
-		alpha.quantiles<-sapply(c(0.025,0.25,0.5,0.75,0.975),function(q){optimize(fn,c(0,10*alpha.mean),q=q, tol = .Machine$double.eps^0.50)$minimum})
-		dose.quantiles<-if(ff==2){ sapply(sdose,function(d){wmodel(d,sort(alpha.quantiles,TRUE))})
-		} else {sapply(sdose,function(d){wmodel(d,sort(alpha.quantiles,TRUE))})} 
+		alpha.quantiles<-sapply(c(0.025,0.25,0.5,0.75,0.975),function(q){	max.x<-seq(0,10*alpha.mean,by=0.1)[which.min(sapply(seq(0,10*alpha.mean,by=0.1),function(i){fn(i,q)}))+1]
+		optimize(fn,c(0,max.x),q=q, tol = .Machine$double.eps^0.50)$minimum
+		})
+		dose.quantiles<-sapply(sdose,function(d){wmodel(d,sort(alpha.quantiles,TRUE))})
 		rownames(dose.quantiles)<-c("2.5%","25%","50%","75%","97.5%")
 	} else {
-		stop("Exact method not yet implemented for 2-parameter model")
+		stop("Exact method not implemented for 2-parameter model")
 	}
 	return(list(alpha.mean=alpha.mean,dose.mean=dose.mean,dose.sd=dose.sd,dose.quantiles=dose.quantiles))
+}
+
+
+# ----------------------------------------------------------------------
+#     Cut-down version of Posterior.exact for use with simulations
+#
+#     tox         --> number of successes (toxicities)
+#     notox       --> number of failed patients (no-toxicities)
+#     sdose       --> vector containing the dose level
+#     ff          --> the model applied in the study
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#			   "logit2" - Two-parameter logistic
+#     prior.alpha  --> list of prior distribution information for parameter alpha
+# 	pointest   --> Which summary estimate of the posterior distribution should be used to choose next dose, "plugin" (default), "mean" or a numerical quantile between 0 and 1 (e.g. 0.5). If NULL then escalation based on posterior intervals (Loss function approach) is assumed
+# ----------------------------------------------------------------------
+Posterior.exact.sim<-function(tox,notox,sdose,ff,prior.alpha,pointest){    
+
+    all.patient <- tox + notox
+    data.tox <-tox[all.patient!=0]
+    data.notox <-notox[all.patient!=0]
+    data.dose <-sdose[all.patient!=0]
+   
+    ## Following code fixes bug if no data available (prior only)
+    if(length(data.dose)==0){
+		data.dose<-sdose[1]
+		data.tox<-data.notox<-0
+    }	
+    wmodel<-which.f(ff)
+
+    prior<-switch(prior.alpha[[1]]
+			,"1"=function(alpha,prior.alpha){dgamma(alpha,shape=prior.alpha[[2]],scale=prior.alpha[[3]])}
+		 	,"2"=function(alpha,prior.alpha){dunif(alpha,min=prior.alpha[[2]],max=prior.alpha[[3]])}
+			,"3"=function(alpha,prior.alpha){dlnorm(alpha,meanlog=prior.alpha[[2]],sdlog=sqrt(prior.alpha[[3]]))}
+			,"4"=function(alpha,prior.alpha){1/(alpha[1]*alpha[2])*dmvnorm(log(alpha),mean=prior.alpha[[2]],sigma=prior.alpha[[3]])})
+
+	if(prior.alpha[[1]]!=4){
+		## Scaling factor to prevent likelihood getting too small
+		C<-1/prod(sapply(1:length(data.dose),function(d){wmodel(data.dose[d],1)^data.tox[d]*(1-wmodel(data.dose[d],1))^data.notox[d]}))
+		lik<-function(dose,tox,notox,alpha,C){
+			l<-rep(1,length(alpha))
+			for(d in 1:length(dose)){
+				l<-l*wmodel(dose[d],alpha)^tox[d]*(1-wmodel(dose[d],alpha))^notox[d]
+			}
+			C*l
+		}
+		int.norm.constant<-function(alpha,dose,tox,notox,prior.alpha){lik(dose,tox,notox,alpha,C)*prior(alpha,prior.alpha)}
+		norm.constant<-integrate(int.norm.constant,ifelse(prior.alpha[[1]]==2,prior.alpha[[2]],0),ifelse(prior.alpha[[1]]==2,prior.alpha[[3]],Inf),dose=data.dose,tox=data.tox,notox=data.notox,prior.alpha=prior.alpha,rel.tol=.Machine$double.eps^0.5)[[1]]
+		if(pointest=="plugin"){
+			int.alpha.mean<-function(alpha,dose,tox,notox,prior.alpha){alpha*lik(dose,tox,notox,alpha,C)*prior(alpha,prior.alpha)}
+			alpha.mean<-integrate(int.alpha.mean,ifelse(prior.alpha[[1]]==2,prior.alpha[[2]],0),ifelse(prior.alpha[[1]]==2,prior.alpha[[3]],Inf),dose=data.dose,tox=data.tox,notox=data.notox,prior.alpha=prior.alpha,rel.tol=.Machine$double.eps^0.5)[[1]]/norm.constant
+			dose.mean<-NULL
+		} else if(pointest=="mean"){
+			int.dose.mean<-function(alpha,new.dose,dose,tox,notox,prior.alpha){wmodel(new.dose,alpha)*lik(dose,tox,notox,alpha,C)*prior(alpha,prior.alpha)}
+			alpha.mean<-NULL
+			dose.mean<-sapply(sdose,function(d){integrate(int.dose.mean,ifelse(prior.alpha[[1]]==2,prior.alpha[[2]],0),ifelse(prior.alpha[[1]]==2,prior.alpha[[3]],Inf),new.dose=d,dose=data.dose,tox=data.tox,notox=data.notox,prior.alpha=prior.alpha,rel.tol=.Machine$double.eps^0.5)[[1]]/norm.constant})
+		} 
+	} else {
+		stop("Exact method not implemented for 2-parameter model")
+	}
+	return(list(alpha.mean=alpha.mean,dose.mean=dose.mean))
 }
 
 
@@ -495,39 +587,49 @@ Posterior.exact<-function(tox,notox,sdose,ff,prior.alpha){
 #     samples.alpha  --> sampled data of variable(s) alpha
 #     sdose     --> vector of allowable dose values
 #     ff       --> integer value:
-#                    1 - hyperbolic tangent
-#                    2 - logistic
-#                    3 - Power
-#				  4 - Two-parameter Logistic
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#		         "logit2" - Two-parameter Logistic
 #     target.tox    --> desired probability of event (toxicity)
 #	constrain	  --> TRUE or FALSE
 #	pointest	  --> "plugin", "mean" or a quantile
 #	current	  --> current dose level (of last treated cohort) - 0 if this is first cohort
 #
 # ----------------------------------------------------------------------
-nextdose<-function(samples.alpha,sdose,ff,target.tox,constrain,pointest,current){
+nextdose<-function(samples.alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss){
 	f<-which.f(ff)
 	k<-length(sdose)
-	if(pointest=="plugin"){
-		mean.alpha<-apply(as.matrix(samples.alpha),2,mean)
-		if(length(mean.alpha)>1) mean.alpha<-t(as.matrix(mean.alpha))
-	} 
 	samples.sdose<-sapply(sdose,function(x){f(x,samples.alpha)})
-	if(is.numeric(pointest)){
-		mtd<-find.x(ff,ptox=target.tox,alpha=samples.alpha)
-		target<-quantile(mtd,pointest)
-	} else {
-		target<-target.tox
-	}
-	est<-if(pointest=="plugin"){ f(sdose,mean.alpha)
-	} else {if(pointest=="mean"){apply(samples.sdose,2,mean)
-		} else { sdose }}
 	mean<-apply(samples.sdose,2,mean)
 	median<-apply(samples.sdose,2,median)
 	sd<-apply(samples.sdose,2,sd)
 	quantiles<-apply(samples.sdose,2,quantile,c(0.025,0.25,0.50,0.75,0.975))
+
+	if(!is.null(loss)){
+		probs<-sapply(1:k,function(i){hist(samples.sdose[,i], c(0,tox.cutpoints,1), plot = FALSE)$counts/dim(samples.sdose)[1]})
+		est<-apply(loss*probs,2,sum)
+		target<-0
+	} else {
+
+		if(pointest=="plugin"){
+			mean.alpha<-apply(as.matrix(samples.alpha),2,mean)
+			if(length(mean.alpha)>1) mean.alpha<-t(as.matrix(mean.alpha))
+		} 
+		if(is.numeric(pointest)){
+			mtd<-find.x(ff,ptox=target.tox,alpha=samples.alpha)
+			target<-quantile(mtd,pointest)
+		} else {
+			target<-target.tox
+		}
+		est<-if(pointest=="plugin"){ f(sdose,mean.alpha)
+		} else {if(pointest=="mean"){apply(samples.sdose,2,mean)
+			} else { sdose }}
+		}
+	# Next dose	
 	ndose<-if(!constrain){which.min(abs(est-target))
 		} else {which.min(abs(est[1:min(current+1,k)]-target))}
+	
 	return(list(ndose=ndose,est=est,mean=mean,sd=sd,quantiles=quantiles,target=target))
 }
 
@@ -538,10 +640,10 @@ nextdose<-function(samples.alpha,sdose,ff,target.tox,constrain,pointest,current)
 #     alpha     --> posterior mean of alpha and posterior mean p(DLT) at each dose level
 #     sdose     --> vector of allowable dose values
 #     ff       --> integer value:
-#                    1 - hyperbolic tangent
-#                    2 - logistic
-#                    3 - Power
-#				  4 - Two-parameter Logistic
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#			   "logit2" - Two-parameter Logistic
 #     target.tox    --> desired probability of event (toxicity)
 #	constrain	  --> TRUE or FALSE
 #	pointest	  --> "mean" or "plugin"
@@ -562,21 +664,48 @@ nextdose.exact<-function(alpha,sdose,ff,target.tox,constrain,pointest,current){
 	return(list(ndose=ndose,est=est,mean=mean,sd=sd,quantiles=quantiles))
 }
 
+# ----------------------------------------------------------------------
+#     Cut-down version of nextdose.exact for use with simulations
+#
+#     alpha     --> posterior mean of alpha and posterior mean p(DLT) at each dose level
+#     sdose     --> vector of allowable dose values
+#     ff       --> integer value:
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#			   "logit2" - Two-parameter Logistic
+#     target.tox    --> desired probability of event (toxicity)
+#	constrain	  --> TRUE or FALSE
+#	pointest	  --> "mean" or "plugin"
+#	current	  --> current dose level (of last treated cohort) - 0 if this is first cohort
+#
+# ----------------------------------------------------------------------
+nextdose.exact.sim<-function(alpha,sdose,ff,target.tox,constrain,pointest,current){
+	f<-which.f(ff)
+	k<-length(sdose)
+	est<-if(pointest=="mean") alpha$dose.mean
+		 else if(pointest=="plugin") f(sdose,alpha$alpha.mean)
+		 else stop("Quantile estimation not available for exact computation, please use pointest='mean' or 'plugin'")
+	ndose<-if(!constrain){which.min(abs(est-target.tox))
+		} else {which.min(abs(est[1:min(current+1,k)]-target.tox))}
+	return(list(ndose=ndose,est=est))
+}
+
 
 # -----------------------------------------------------------------------
 #     Return the calculation models
 #     ff       --> integer value:
-#                    1 - hyperbolic tangent
-#                    2 - logistic
-#                    3 - Power
-#				  4 - Two-parameter logistic
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#			   "logit2" - Two-parameter logistic
 # -----------------------------------------------------------------------
 which.f <- function( ff ) {
     return( switch(ff,
-                    function(dose,alpha) {((tanh(dose)+1)/2)^alpha},
-                    function(dose,alpha) {1/(1+exp(-3-alpha*dose))},
-                    function(dose,alpha) {dose^alpha},
-                    function(dose,alpha) {1/(1+exp(-log(alpha[,1])-alpha[,2]*dose))} ))
+                    ht=function(dose,alpha) {((tanh(dose)+1)/2)^alpha},
+                    logit1=function(dose,alpha) {1/(1+exp(-3-alpha*dose))},
+                    power=function(dose,alpha) {dose^alpha},
+                    logit2=function(dose,alpha) {1/(1+exp(-log(alpha[,1])-alpha[,2]*dose))} ))
 }
 
 # ----------------------------------------------------------------------
@@ -587,14 +716,14 @@ which.f <- function( ff ) {
 #     alpha      --> the parameter(s) of the model
 # ----------------------------------------------------------------------
 find.x <- function( ff, ptox, alpha ) {
-    if ( ff == 1 ) {
+    if ( ff == "ht" ) {
 	  x<-atanh(2*ptox^(1/alpha)-1)
     }
-    else if ( ff == 2 )
+    else if ( ff == "logit1" )
         x <- (qlogis(ptox)-3)/alpha
-    else if ( ff == 3)
+    else if ( ff == "power")
         x <- exp(log(ptox)/alpha)
-	else if (ff==4){
+	else if (ff=="logit2"){
 	   if(is.vector(alpha))	alpha<-matrix(alpha,ncol=2)
 	   x <- (qlogis(ptox)-log(alpha[,1]))/alpha[,2]
 	}
@@ -602,42 +731,36 @@ find.x <- function( ff, ptox, alpha ) {
 }
 
 #-----------------------------------------------------------------------
-#     Dose-response plot 
-#
-#     tox         --> number of successes (toxicities)
-#     notox       --> number of failed patients (no-toxicities)
-# 	samples.alpha --> posterior sample of parameter(s) alpha
-#	 dose	    --> vector of doses 
-#     sdose       --> vector of standardised doses (used only if dose is not supplied)
-#	ff		--> Functional form of the dose-response curve
-#     target.tox  --> desired level of probability for toxicity
-#	ndose	   --> summary information about next dose, together with posterior mean, sd and quantiles obtained from nextdose function
+#    Plot function for an object of class bcrm
 # -----------------------------------
-dose.response.plot<-function(tox,notox,dose,sdose,ff,target.tox,ndose){
-	dose<-if(is.null(dose)) sdose else dose
-	f<-which.f(ff)
+plot.bcrm<-function(x,file=NULL,...){
+	dose<-if(is.null(x$dose)) x$sdose else x$dose
+	f<-which.f(x$ff)
+	df<-data.frame(dose=dose,target.tox=x$target.tox,est=x$ndose$est,mean=x$ndose$mean,q2.5=x$ndose$quantiles["2.5%",],q25=x$ndose$quantiles["25%",],q50=x$ndose$quantiles["50%",],q75=x$ndose$quantiles["75%",],q97.5=x$ndose$quantiles["97.5%",])
+	df2<-data.frame(dose=factor(c(rep(dose,x$tox),rep(dose,x$notox)),levels=dose),Outcome=c(rep("DLT",sum(x$tox)),rep("No DLT",sum(x$notox))))
 
-	df<-data.frame(dose=dose,target.tox=target.tox,est=ndose$est,mean=ndose$mean,q2.5=ndose$quantiles["2.5%",],q25=ndose$quantiles["25%",],q50=ndose$quantiles["50%",],q75=ndose$quantiles["75%",],q97.5=ndose$quantiles["97.5%",])
-	df2<-data.frame(dose=factor(c(rep(dose,tox),rep(dose,notox)),levels=dose),Outcome=c(rep("DLT",sum(tox)),rep("No DLT",sum(notox))))
-
-	a<-ggplot()+geom_errorbar(aes(x=dose,ymin=q2.5,ymax=q97.5),colour="red",data=df)+geom_crossbar(aes(x=dose,y=q50,ymin=q25,ymax=q75),data=df,fill="red")+
-		geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)+geom_point(aes(x=dose,y=est),data=df[ndose[[1]],],size=4,col=4,shape=9)+xlab("Dose")+ylab("Probability of DLT")+ylim(0,1)+
+	a<-if(is.null(x$loss)){ ggplot()+geom_errorbar(aes(x=dose,ymin=q2.5,ymax=q97.5),colour="red",data=df)+geom_pointrange(aes(x=dose,y=q50,ymin=q25,ymax=q75),data=df,fill="red")+
+		geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab("Dose")+ylab("Probability of DLT")+ylim(0,1)+opts(title="Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5%")+
+		if(is.character(x$pointest)){geom_point(aes(x=dose,y=est),data=df[x$ndose[[1]],],size=4,col=4,shape=9)} else {geom_point(aes(x=dose,y=q50),data=df[x$ndose[[1]],],size=4,col=4,shape=9)}
+	} else { 
+	df.intervals<-data.frame(xmin=min(dose),xmax=max(dose),ymin=c(0,tox.cutpoints),ymax=c(x$tox.cutpoints,1),Loss=x$loss)
+	ggplot()+geom_errorbar(aes(x=dose,ymin=q2.5,ymax=q97.5),colour="red",data=df)+geom_pointrange(aes(x=dose,y=q50,ymin=q25,ymax=q75),data=df,fill="red")+
+		geom_point(aes(x=dose,y=q50),data=df[x$ndose[[1]],],size=4,col=4,shape=9)+
+		geom_rect(aes(xmin=xmin,ymin=ymin,xmax=xmax,ymax=ymax,fill=Loss),data=df.intervals,alpha=0.3)+xlab("Dose")+ylab("Probability of DLT")+ylim(0,1)+
 		opts(title="Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5%")
+	}
 	b<-if(nrow(df2)!=0) {ggplot()+geom_bar(aes(x=dose,fill=Outcome),data=df2)+xlab("Dose")+ylab("Number")
 		} else { NULL	}
 
+	if(!is.null(file))
+		pdf(paste(file,sum(x$tox+x$notox),".pdf",sep=""),...)
 	grid.newpage()
 	pushViewport(viewport(layout=grid.layout(2,1)))
 	vplayout<-function(x,y)	viewport(layout.pos.row=x,layout.pos.col=y)
 	print(a,vp=vplayout(1,1))	
 	print(b,vp=vplayout(2,1))	
-}
-
-#-----------------------------------------------------------------------
-#    Plot function for an object of class bcrm
-# -----------------------------------
-plot.bcrm<-function(x,...){
-	dose.response.plot(x$tox,x$notox,x$dose,x$sdose,x$ff,x$target.tox,x$ndose)
+	if(!is.null(file))
+		dev.off()
 }
 
 
@@ -648,10 +771,10 @@ plot.bcrm<-function(x,...){
 print.bcrm<-function(x,...){
 	cat(" Estimation method: ",x$method,"\n")
 	ff.txt<-switch(x$ff
-		,"1"="Hyperbolic Tangent"
-		,"2"="1-parameter logistic"
-		,"3"="1-parameter power"
-		,"4"="Two-parameter logistic")
+		,ht="Hyperbolic Tangent"
+		,logit1="1-parameter logistic"
+		,power="1-parameter power"
+		,logit2="Two-parameter logistic")
 
 	cat("\n Model: ",ff.txt,"\n")
 
@@ -675,14 +798,21 @@ print.bcrm<-function(x,...){
 	if(x$constrain) { cat("\n Modified (constrained) CRM used, starting dose: ",x$start,"\n") 
 		} else { cat("\n Unmodified (unconstrained) CRM used \n") }
 	
-	if(x$pointest=="plugin"){
+	if(!is.null(x$loss)){
+		cat("\n Loss function given intervals of toxicity used to select next dose.")
+		tab.lf<-x$loss
+		names(tab.lf)<-levels(cut(0,breaks=c(0,x$tox.cutpoints,1)))
+		cat("\n Loss function: \n")
+		print(tab.lf)
+	}
+	else { if(x$pointest=="plugin"){
 		cat("\n Plug-in estimate of probability of toxicity used to select next dose \n")
 	} else if(x$pointest=="mean"){
 		cat("\n Posterior mean estimate of probability of toxicity used to select next dose \n")
 	} else { 
 		cat("\n",100*x$pointest,"percentile of (standardised) MTD distribution used to select next dose")
 		cat("\n",100*x$pointest,"percentile is:",x$ndose$target,"\n")
-	}	
+	}}	
 
 	tab<-rbind(x$tox+x$notox,x$tox)
 	rownames(tab)<-c("n","Toxicities")
@@ -701,7 +831,12 @@ print.bcrm<-function(x,...){
 	cat("\n Posterior estimates of toxicity: \n")
 	print(tab2a)
 	print(tab2b)
-	if(x$pointest=="plugin"){
+	if(!is.null(x$loss)){
+		tab3<-rbind(x$ndose$est)
+		colnames(tab3)<-x$dose
+		cat("\n Posterior expected loss at each dose: \n")		
+		print(tab3)
+	} else if(x$pointest=="plugin"){
 		tab3<-rbind(x$ndose$est)
 		colnames(tab3)<-x$dose
 		cat("\n Plug-in estimates of toxicity: \n")
@@ -718,7 +853,7 @@ print.bcrm<-function(x,...){
 # -----------------------------------
 print.bcrm.sim<-function(x,...){
 	n<-apply(sapply(x,function(i){(i$tox+i$notox)/sum(i$tox+i$notox)}),1,mean)
-	rec<-prop.table(table(factor(sapply(x,function(i){i$ndose}),levels=1:length(x[[1]]$tox))))
+	rec<-prop.table(table(factor(sapply(x,function(i){i$ndose$ndose}),levels=1:length(x[[1]]$tox))))
 	tab<-rbind(n,rec)
 	rownames(tab)<-c("Experimentation proportion","Recommendation proportion")
 	colnames(tab)<-x[[1]]$dose
