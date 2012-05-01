@@ -10,3 +10,4 @@ find.x
 S3method(print, bcrm)
 S3method(print,bcrm.sim)
 S3method(plot, bcrm)
+S3method(plot, bcrm.sim)

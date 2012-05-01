@@ -1,7 +1,18 @@
+Version 0.3 (1st May 2012)
+-------------
+* Stores posterior summaries after each step of an escalation, if a trial is conducted interactivey. These summaries are now returned in the "ndose" componenet of the bcrm object. The component "alpha" is now redundant and has been removed.
+* Stopping rules have been added, allowing stopping to be based on a maximum sample size, the maximum number to be treated at the final MTD estimate, the precision of the MTD estimate, and a minumum sample size.
+* Posterior summaries after each recruited cohort can now be plotted using the "each" argument of plot.bcrm.
+* When simulating, operating characteristics are also now presented by true regions of toxicity risk.
+* Initial search space for posterior quantiles limited to a grid of size 100
+* Simulations now run faster, as they use information from identical previous simulations to choose next dose. This is only implemented if nsims<=1000, otherwise the computation time to search previous simulations becomes unmanageable.
+* Plot and print commands now refer to actual dose labels when they have been given by the user
+* Output from simulations can now be plotted as histograms using the function plot.bcrm.sim
+
 Version 0.2 (9th February 2012)
 -------------
 * Implementation of escalation based on posterior toxicity intervals using loss functions, as described in Neuenschwander et al, 2008.
-* Fixed bug where posterior quantiles are occasionally incorrectly calculated using method="exact". This occurred because the space in which optimize searched for the quantile was sometimes too large and optimize did not find the correct minimum. The new release chooses the interval in which to search based on a priliminary grid search.
+* Fixed bug where posterior quantiles are occasionally incorrectly calculated using method="exact". This occurred because the space in which optimize searched for the quantile was sometimes too large and optimize did not find the correct minimum. The new release chooses the interval in which to search based on a preliminary grid search.
 * Fixed problem with `file' argument, where only the last of the two plots was saved.
 
 Version 0.1 (11th January 2012)
