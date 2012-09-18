@@ -7,7 +7,7 @@ Plot the operating characteristics from the simulated trials
 Plots of the operating characteristics obtained from a CRM simulation.
 }
 \usage{
-\method{plot}{bcrm.sim}(x, trajectories = FALSE, file = NULL, \ldots)
+\method{plot}{bcrm.sim}(x, trajectories = FALSE, file = NULL, threep3 = FALSE, \ldots)
 }
 \arguments{
   \item{x}{
@@ -19,15 +19,19 @@ Plots of the operating characteristics obtained from a CRM simulation.
   \item{file}{
 File name where the operating characteristic plot is stored, in a pdf format.
 }
+ \item{threep3}{
+Should operating characteristics of a standard 3+3 rule-based design be plotted alongside the \code{bcrm} design? Defaults to \code{FALSE}.
+}
  \item{...}{Further arguments passed to or from other methods}
 }
 \details{
 This function plots the sample size distribution (if variable), the experimentation distribution, the recommended dose distribution and the percentage of subjects who experience the toxicity outcome (dose-limiting toxicity).
 If \code{trajectories = TRUE} then summary statistics of administered dose levels for each patient are plotted instead.
+If \code{threep3 = TRUE} then the operating characteristics of the standard 3+3 design are plotted alongside those of the \code{bcrm} design (see \code{\link{threep3}} for more details).
 }
 \author{
 Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
 }
 \seealso{
-\code{\link{print.bcrm.sim}}, \code{\link{bcrm}}
+\code{\link{print.bcrm.sim}}, \code{\link{bcrm}}, \code{\link{threep3}}
 }

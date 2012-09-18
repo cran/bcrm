@@ -13,7 +13,7 @@ bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL),
      ff, prior.alpha, cohort = 3, target.tox, constrain = TRUE,
      sdose.calculate = "mean", pointest = "plugin", tox.cutpoints = NULL,
 	loss = NULL, start = NULL, simulate = FALSE, nsims = 1, truep = NULL, 
-	method = "exact", burnin.itr = 2000, production.itr = 2000,
+	threep3 = FALSE, method = "exact", burnin.itr = 2000, production.itr = 2000,
      bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, file = NULL, N)
 }
 
@@ -96,6 +96,9 @@ Number of simulations to perform if \code{simulate==TRUE} (defaults to 1).
   \item{truep}{
 A vector of length k giving the true probabilities of the outcome (toxicity) at each dose level \code{1,...,k} in order to simulate data. Only required if \code{simulate=TRUE}
 }
+  \item{threep3}{
+Should operating characteristics of a standard 3+3 rule-based design be calculated, for comparison with \code{bcrm} design? Defaults to \code{FALSE}. Only used in a simulation study, i.e. when \code{simulate=TRUE}.
+}
   \item{method}{
 Optimisation method: options are \code{"exact"} (the default), \code{"BRugs"}, or \code{"R2WinBUGS"}.
 }
@@ -145,6 +148,8 @@ To specify a fixed maximum sample size of size \code{m} use \code{stop=list(nmax
 The trial can be run interactively using \code{simulate=FALSE}, where the user enters the outcomes for each new cohort,  or as a simulation study when \code{simulate=TRUE}.
 
 The default calculations use exact methods (\code{method="exact"}) to calculate the mean and quantiles for the posterior distributions, unless a 2-parameter model is specified, in which case MCMC methods must be used. The two choices for MCMC calculations are \code{method="BRugs"} or \code{method="R2WinBUGS"}, the former using the OpenBUGS software, whilst the latter uses WinBUGS. To implement these methods, users require either package to be installed on their system.
+
+A simulated \code{bcrm} design can be compared with the standard 3+3 rule-based method, see \code{\link{threep3}} for more details.
 }
 \value{
 \code{bcrm} returns an object of class "bcrm" or "bcrm.sim"; the latter occuring when a simulation has been conducted (\code{simulate=TRUE}).
@@ -195,7 +200,7 @@ Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk} (MRC Biostatistics U
 }
 
 \seealso{
-\code{\link{print.bcrm}}, \code{\link{print.bcrm.sim}}, \code{\link{plot.bcrm}}, \code{\link{plot.bcrm.sim}}
+\code{\link{print.bcrm}}, \code{\link{print.bcrm.sim}}, \code{\link{plot.bcrm}}, \code{\link{plot.bcrm.sim}}, \code{\link{threep3}}
 }
 \examples{
 ## Dose-escalation cancer trial example as described in Neuenschwander et al 2008.
@@ -230,6 +235,15 @@ Power.LN.bcrm.sim<-bcrm(stop=list(nmax=36),p.tox0=p.tox0,dose=dose,ff="power"
   ,sdose.calculate="median",pointest="mean",start=1,simulate=TRUE,nsims=10,truep=p.tox0)
 print(Power.LN.bcrm.sim)
 plot(Power.LN.bcrm.sim)
+
+## Comparing this CRM design with the standard 3+3 design (only considering the first 12 dose levels)
+\dontrun{
+Power.LN.bcrm.compare.sim<-bcrm(stop=list(nmax=36),p.tox0=p.tox0[1:12],dose=dose[1:12],ff="power"
+  ,prior.alpha=list(3,0,1.34^2),target.tox=target.tox,constrain=TRUE
+  ,sdose.calculate="median",pointest="mean",start=1,simulate=TRUE,nsims=50,truep=p.tox0[1:12],threep3=TRUE)
+print(Power.LN.bcrm.compare.sim,threep3=TRUE)
+plot(Power.LN.bcrm.compare.sim,threep3=TRUE)
+}
 
 ## A 2-parameter model, using priors as specified in Neuenschwander et al 2008.
 ## Posterior mean used to choose the next dose

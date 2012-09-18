@@ -1,7 +1,7 @@
 ## Bayesian CRM - extending original code of J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 ## Now using exact inference, R2WinBUGS and BRugs 
 
-### MJS 24/02/12
+### MJS 18/09/12
 
 # ----------------------------------------------------------------------
 # 	bcrm. Conduct a Bayesian CRM trial simulating outcomes from a true model
@@ -40,6 +40,7 @@
 #    simulate -->  Perform a simulation to assess operating characteristics (Default=TRUE). If FALSE, a single CRM trial is run interactively, allowing the user to input outcomes after each cohort is recruited?
 #    nsims	--> No. of simulations to perform if simulate==T (defaults to 1)
 # 	truep	     --> True probabilities of response at dose levels to simulate data. Only should be specified if simulate=TRUE
+#    threep3     --> If TRUE (default is FALSE) then operating characteristics of the simulated design are compared against a standard rule-based 3+3 design
 #	method      --> Optimisation method: options are "exact" (the default), "BRugs", or "R2WinBUGS"
 #     burnin.itr --> No. of burn-in iterations
 #     production.itr --> No. of production iterations
@@ -49,7 +50,7 @@
 #	N --> Final sample size (Deprecated). To be replaced with stop in future versions
 # ----------------------------------------------------------------------
 bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),tox=NULL,notox=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.alpha,cohort=3,target.tox,constrain=TRUE,sdose.calculate="mean",pointest="plugin",tox.cutpoints=NULL,loss=NULL,
-	start=NULL,simulate=FALSE,nsims=1,truep=NULL,
+	start=NULL,simulate=FALSE,nsims=1,truep=NULL,threep3=FALSE,
 	method="exact",burnin.itr=2000,production.itr=2000,bugs.directory="c:/Program Files/WinBUGS14/",plot=FALSE,file=NULL,N){
 
 	# Checks of argument inputs	
@@ -238,6 +239,15 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),tox=NULL,
 			cat(sim,"\n")
 		}
 	sim<-sim+1
+	}
+	if(simulate & threep3){
+		if(length(truep)>9){
+			cat("\n Warning: Calculation of all 3+3 designs may take a long time, continue?  ")
+			yn <- readline()
+              	if (yn!="y" & yn=="Y") return(results)
+          }
+		cat("\n Calculating operating characteristics of a standard 3+3 trial for comparison... \n")
+		results[[1]]$threep3<-threep3(truep,dose=dose) 
 	}
 	return(results)
 }
@@ -957,22 +967,22 @@ plot.bcrm<-function(x,file=NULL,each=FALSE,...){
 		if(!each){ 	
 			if(x$method %in% c("exact","exact.sim") & x$ff=="logit2"){
 				ggplot()+geom_point(aes(x=dose,y=est),data=df)+
-				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+opts(title="Posterior point estimates \n Diamond shows next recommended dose")+
+				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+ggtitle("Posterior point estimates \n Diamond shows next recommended dose")+
 				geom_point(aes(x=dose,y=est),data=df[x$ndose[[length(x$ndose)]][[1]],],size=4,col=4,shape=9)
 			} else {
 				ggplot()+geom_errorbar(aes(x=dose,ymin=q2.5,ymax=q97.5),colour="red",data=df)+geom_pointrange(aes(x=dose,y=q50,ymin=q25,ymax=q75),data=df,fill="red")+
-				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+opts(title="Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")+
+				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+ggtitle("Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")+
 				geom_point(aes(x=dose,y=q50),data=df[x$ndose[[length(x$ndose)]][[1]],],size=4,col=4,shape=9)
 			}
 		} else {
 			if(x$method %in% c("exact","exact.sim") & x$ff=="logit2"){
 				ggplot()+geom_point(aes(x=dose,y=est),data=df)+
-				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+opts(title="Posterior point estimates \n Diamond shows next recommended dose")+
+				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+ggtitle("Posterior point estimates \n Diamond shows next recommended dose")+
 				geom_point(aes(x=ndose,y=q50),data=df[df$dose==df$ndose,],size=4,col=4,shape=9)+
 				facet_wrap(~ cohort) 
 			} else {
 				ggplot()+geom_errorbar(aes(x=dose,ymin=q2.5,ymax=q97.5),colour="red",data=df)+geom_pointrange(aes(x=dose,y=q50,ymin=q25,ymax=q75),data=df,fill="red")+
-				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+opts(title="Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")+
+				geom_hline(aes(yintercept=target.tox),data=df,col=4,linetype=2)	+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+ggtitle("Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")+
 				geom_point(aes(x=ndose,y=q50),data=df[df$dose==df$ndose,],size=4,col=4,shape=9)+
 				facet_wrap(~ cohort) 
 			}
@@ -984,12 +994,12 @@ plot.bcrm<-function(x,file=NULL,each=FALSE,...){
 			geom_point(aes(x=dose,y=q50),data=df[x$ndose[[length(x$ndose)]][[1]],],size=4,col=4,shape=9)+
 			geom_rect(aes(xmin=xmin,ymin=ymin,xmax=xmax,ymax=ymax,fill=Loss),data=df.intervals,alpha=0.3)+scale_fill_gradient(breaks=sort(unique(df.intervals$Loss)),high="red",low="#99ccff")+
 			xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+
-			opts(title="Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")
+			ggtitle("Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")
 		} else {
 			ggplot()+geom_errorbar(aes(x=dose,ymin=q2.5,ymax=q97.5),colour="red",data=df)+geom_pointrange(aes(x=dose,y=q50,ymin=q25,ymax=q75),data=df,fill="red")+
 			geom_point(aes(x=ndose,y=q50),data=df[df$dose==df$ndose,],size=4,col=4,shape=9)+
 			geom_rect(aes(xmin=xmin,ymin=ymin,xmax=xmax,ymax=ymax,fill=Loss),data=df.intervals,alpha=0.3)+xlab(dose.label)+ylab("Probability of DLT")+ylim(0,1)+
-			opts(title="Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")+
+			ggtitle("Posterior p(DLT) quantiles: 2.5%, 25%, 50%, 75%, 97.5% \n Diamond shows next recommended dose")+
 			facet_wrap(~ cohort)
 		}
 	}
@@ -1014,8 +1024,9 @@ plot.bcrm<-function(x,file=NULL,each=FALSE,...){
 
 #-----------------------------------------------------------------------
 #    Plot function for an object of class bcrm.sim
+#    threep3     --> If TRUE (default is FALSE) then operating characteristics of the simulated design are compared against a standard rule-based 3+3 design
 # -----------------------------------
-plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,...){
+plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,threep3=FALSE,...){
 	dose<-if(is.null(x[[1]]$dose)) x[[1]]$sdose else x[[1]]$dose
 	dose.label<-if(is.null(x[[1]]$dose)) "Standardised dose" else "Dose"
 
@@ -1029,34 +1040,65 @@ plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,...){
 		traj.df<-data.frame(patient=rep(1:max(n),each=5),Statistic=factor(rep(c("Minimum","Lower Quartile","Median","Upper Quartile","Maximum"),max(n)),levels=c("Minimum","Lower Quartile","Median","Upper Quartile","Maximum")),traj=c(apply(traj.mat,2,quantile,na.rm=T)))
 		cols<- c("Median" = "black","Lower Quartile" = "blue","Upper Quartile" = "blue", "Minimum" = "red","Maximum"="red")
 		lt<-c("Median" = 1,"Lower Quartile" = 2,"Upper Quartile" = 2, "Minimum" = 4,"Maximum"=4)
-		ggplot()+geom_step(aes(x=patient,y=traj,group=Statistic,colour=Statistic,linetype=Statistic),data=traj.df)+
+		a<-ggplot()+geom_step(aes(x=patient,y=traj,group=Statistic,colour=Statistic,linetype=Statistic),data=traj.df)+
 			scale_colour_manual(values=cols)+scale_linetype_manual(values=lt)+
 			xlab("Patient")+ylab("Dose Level")
+		print(a)
 		if(!is.null(file))
 			ggsave(paste(file,".pdf",sep=""),...)
 	} else {
+		if(threep3 & is.null(x[[1]]$threep3)){
+			cat("\n Calculating 3+3 operating characteristics....\n")
+			x[[1]]$threep3<-threep3(x[[1]]$truep)
+		}
 		# sample size
 		n<-sapply(x,function(i){length(i$alldoses)})
 		df.n<-data.frame(n)
-		a<-if(min(n)!=max(n)){
-			ggplot()+geom_histogram(aes(x=n,y=100*..density..),data=df.n,binwidth=1)+xlab("Sample size")+ylab("Percent")+opts(title="Sample size")
-		} else {NULL}
-
+		if(!threep3){
+			a<-if(min(n)!=max(n)){
+				ggplot()+geom_histogram(aes(x=n,y=100*..density..),data=df.n,binwidth=1)+xlab("Sample size")+ylab("Percent")+ggtitle("Sample size")
+			} else { NULL }
+		} else {
+			n.threep3<-x[[1]]$threep3$ssize
+			df.n.threep3<-data.frame(n=c(n,n.threep3),weight=c(rep(1/length(n),length(n)),x[[1]]$threep$prob),Method=rep(c("CRM","3+3"),c(length(n),length(n.threep3))))
+			a<-ggplot()+stat_bin(aes(x=n,y=100*..density..,weight=weight,fill=Method),data=df.n.threep3,binwidth=1,position="dodge")+xlab("Sample size")+ylab("Percent")+ggtitle("Sample size")
+		}
+		
 		# experimentation
 		exp<-rep(dose,apply(sapply(x,function(i){(i$tox+i$notox)}),1,sum))
-		df.exp<-data.frame(exp)
-		b<-ggplot()+geom_histogram(aes(x=exp,y=100*..density..),data=df.exp,binwidth=1)+xlab(dose.label)+ylab("Percent")+opts(title="Experimentation")
+		if(!threep3){
+			df.exp<-data.frame(exp=factor(exp))
+			b<-ggplot()+geom_histogram(aes(x=exp,y=100*..count../sum(..count..)),data=df.exp)+xlab(dose.label)+ylab("Percent")+ggtitle("Experimentation")
+		} else {
+			exp.threep3<-rep(dose,10000*x[[1]]$threep3$exp)
+			df.exp.threep3<-data.frame(exp=factor(c(exp,exp.threep3)),Method=rep(c("CRM","3+3"),c(length(exp),length(exp.threep3))),weight=c(rep(1/length(exp),length(exp)),rep(1/length(exp.threep3),length(exp.threep3))))
+			b<-ggplot()+geom_histogram(aes(x=exp,y=100*..count..,weight=weight,fill=Method),data=df.exp.threep3,position="dodge")+xlab(dose.label)+ylab("Percent")+ggtitle("Experimentation")
+		}
 
 		# recommendation
 		rec<-dose[sapply(x,function(i){i$ndose[[length(i$ndose)]]$ndose})]
-		df.rec<-data.frame(rec)
-		c<-ggplot()+geom_histogram(aes(x=rec,y=100*..density..),data=df.rec,binwidth=1)+xlab(dose.label)+ylab("Percent")+opts(title="Recommendation")
-
-		# observed DLTs
+		if(!threep3){
+			df.rec<-data.frame(rec=factor(rec))
+			c<-ggplot()+geom_histogram(aes(x=rec,y=100*..count../sum(count)),data=df.rec)+xlab(dose.label)+ylab("Percent")+ggtitle("Recommendation")
+		} else {
+			rec.threep3<-dose[x[[1]]$threep3$mtd]
+			df.rec.threep3<-data.frame(rec=factor(c(rec,rec.threep3)),weight=c(rep(1/length(rec),length(rec)),x[[1]]$threep$prob[x[[1]]$threep3$mtd!=0]),Method=rep(c("CRM","3+3"),c(length(rec),length(rec.threep3))))
+			c<-ggplot()+geom_histogram(aes(x=rec,y=100*..count..,weight=weight,fill=Method),data=df.rec.threep3,position="dodge")+xlab(dose.label)+ylab("Percent")+ggtitle("Recommendation")
+		}
+		
+          # observed DLTs
 		obs<-sapply(x,function(i){100*sum(i$tox)/sum(i$tox+i$notox)})
-		df.obs<-data.frame(obs)
-		d<-ggplot()+geom_histogram(aes(x=obs,y=100*..density..),data=df.obs,binwidth=1)+xlab("Percentage of subjects with DLTs")+ylab("Percent")+opts(title="DLTs")
-
+		if(!threep3){
+			bw<-max(diff(range(obs))/30,1)
+			df.obs<-data.frame(obs=obs,bw=bw)
+			d<-ggplot()+geom_histogram(aes(bw=bw,x=obs,y=100*..density..*bw),data=df.obs,binwidth=bw)+xlab("Percentage of subjects with DLTs")+ylab("Percent")+ggtitle("DLTs")
+		} else {
+			obs.threep3<-100*x[[1]]$threep3$dlt.no/x[[1]]$threep3$ssize
+			bw<-diff(range(c(obs,obs.threep3)))/30
+			df.obs.threep3<-data.frame(bw=bw,obs=c(obs,obs.threep3),weight=c(rep(1/length(obs),length(obs)),x[[1]]$threep$prob),Method=rep(c("CRM","3+3"),c(length(obs),length(obs.threep3))))
+			df.obs.threep3<-subset(df.obs.threep3,df.obs.threep3$weight>0)
+			d<-ggplot()+geom_histogram(aes(bw=bw,x=obs,y=100*..density..*bw,weight=weight,fill=Method),data=df.obs.threep3,binwidth=bw,position="dodge")+xlab("Percentage of subjects with DLTs")+ylab("Percent")+ggtitle("DLTs")
+		}
 		if(!is.null(file))
 			pdf(paste(file,".pdf",sep=""),...)
 		grid.newpage()
@@ -1068,7 +1110,49 @@ plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,...){
 		print(d,vp=vplayout(2,2))	
 		if(!is.null(file))
 			dev.off()
-	}
+		}
+}
+
+#-----------------------------------------------------------------------
+#    Plot function for an object of class threep3
+# -----------------------------------
+plot.threep3<-function(x,file=NULL,...){
+	dose<-if(is.null(x$dose)) 1:length(x$truep) else x$dose
+	dose.label<-if(is.null(x$dose)) "Dose levels" else "Dose"
+	
+	# sample size
+	n.threep3<-x$ssize
+	df.n.threep3<-data.frame(n=n.threep3,weight=x$prob)
+	a<-ggplot()+stat_bin(aes(x=n,y=100*..density..,weight=weight),data=df.n.threep3,binwidth=1)+xlab("Sample size")+ylab("Percent")+ggtitle("Sample size")
+
+	# experimentation
+	exp.threep3<-rep(dose,10000*x$exp)
+	df.exp.threep3<-data.frame(exp=as.factor(exp.threep3))
+	b<-ggplot()+geom_histogram(aes(x=exp,y=..count../100),data=df.exp.threep3)+xlab(dose.label)+ylab("Percent")+ggtitle("Experimentation")
+
+	# recommendation
+	rec.threep3<-dose[x$mtd]
+	df.rec.threep3<-data.frame(rec=factor(rec.threep3),weight=x$prob[x$mtd!=0])
+	c<-ggplot()+geom_histogram(aes(x=rec,y=100*..count..,weight=weight),data=df.rec.threep3)+xlab(dose.label)+ylab("Percent")+ggtitle("Recommendation")
+
+     # observed DLTs
+	obs.threep3<-100*x$dlt.no/x$ssize
+	bw<-max(diff(range(obs.threep3[x$prob>0]))/30,1)
+	df.obs.threep3<-data.frame(obs=obs.threep3,weight=x$prob,bw=bw)
+	df.obs.threep3<-subset(df.obs.threep3,df.obs.threep3$weight>0)
+	d<-ggplot()+geom_histogram(aes(bw=bw,x=obs,y=100*..density..*bw,weight=weight),data=df.obs.threep3,binwidth=bw)+xlab("Percentage of subjects with DLTs")+ylab("Percent")+ggtitle("DLTs")
+
+	if(!is.null(file))
+		pdf(paste(file,".pdf",sep=""),...)
+	grid.newpage()
+	pushViewport(viewport(layout=grid.layout(2,2)))
+	vplayout<-function(x,y)	viewport(layout.pos.row=x,layout.pos.col=y)
+	if(!is.null(a)) print(a,vp=vplayout(1,1))	
+	print(b,vp=vplayout(1,2))
+	print(c,vp=vplayout(2,1))	
+	print(d,vp=vplayout(2,2))	
+	if(!is.null(file))
+		dev.off()
 }
 
 
@@ -1170,7 +1254,7 @@ print.bcrm<-function(x,...){
 #-----------------------------------------------------------------------
 #    Print function for an object of class bcrm.sim
 # -----------------------------------
-print.bcrm.sim<-function(x,tox.cutpoints=NULL,trajectories=FALSE,...){
+print.bcrm.sim<-function(x,tox.cutpoints=NULL,trajectories=FALSE,threep3=FALSE,...){
 	if(trajectories){
 		## sample size
 		n<-sapply(x,function(i){length(i$alldoses)})
@@ -1198,7 +1282,8 @@ print.bcrm.sim<-function(x,tox.cutpoints=NULL,trajectories=FALSE,...){
 		rec<-prop.table(table(factor(sapply(x,function(i){i$ndose[[length(i$ndose)]]$ndose}),levels=1:length(x[[1]]$tox))))
 		tab<-signif(rbind(exp,rec),3)
 		rownames(tab)<-c("Experimentation proportion","Recommendation proportion")
-		colnames(tab)<-x[[1]]$dose
+		dose<-if(is.null(x[[1]]$dose)){1:length(x[[1]]$truep)} else {x[[1]]$dose}
+		colnames(tab)<-dose
 		names(dimnames(tab))<-c("","Doses")
 		if(is.null(tox.cutpoints)){
 			tox.cutpoints<-seq(0,1,by=0.2)
@@ -1216,8 +1301,192 @@ print.bcrm.sim<-function(x,tox.cutpoints=NULL,trajectories=FALSE,...){
 		print(tab)
 		cat("\n")
 		print(tab2)
+		if(threep3 & is.null(x[[1]]$threep3)){
+			cat("\n Calculating 3+3 operating characteristics....\n")
+			x[[1]]$threep3<-threep3(x[[1]]$truep)
+		}
+		if(threep3){
+			cat("\n\n******************** 3+3 operating characteristics *****************\n")
+			print.threep3(x[[1]]$threep3,tox.cutpoints=tox.cutpoints,dose=dose)
+		}
 	}
 }
+
+#-----------------------------------------------------------------------
+#    Print function for an object of class threep3
+# -----------------------------------
+print.threep3<-function(x,tox.cutpoints=NULL,dose=NULL,...){
+	if(is.null(dose)){
+		dose<-1:length(x$truep)
+	}
+	# average sample size
+	n.average<-weighted.mean(x$ssize,x$prob)
+	n.min<-min(x$ssize[x$prob>0])
+	n.max<-max(x$ssize[x$prob>0])
+	tab0<-cbind(n.average,n.min,n.max)
+	rownames(tab0)<-"Sample size"
+	colnames(tab0)<-c("Mean","Minimum","Maximum")
+	exp<-c(NA,x$exp)
+	rec<-xtabs(x$prob~x$mtd)
+	tab<-signif(rbind(exp,rec),3)
+	rownames(tab)<-c("Experimentation proportion","Recommendation proportion")
+	colnames(tab)<-c(paste("<",dose[1]),dose)
+	names(dimnames(tab))<-c("","Doses")
+	if(is.null(tox.cutpoints)){
+		tox.cutpoints<-seq(0,1,by=0.2)
+	} else {
+		tox.cutpoints<-unique(c(0,tox.cutpoints,1))
+	}
+	exp.tox<-xtabs(x$exp~cut(x$truep,tox.cutpoints,include.lowest=T))
+	rec.tox<-xtabs(rec[-1]~cut(x$truep,tox.cutpoints,include.lowest=T))
+	tab2<-signif(rbind(exp.tox,rec.tox),3)
+	rownames(tab2)<-c("Experimentation proportion","Recommendation proportion*")
+	names(dimnames(tab2))<-c("","Probability of DLT")
+
+	print(tab0)
+	cat("\n")
+	print(tab)
+	cat("\n")
+	print(tab2)
+	cat("\n * Amongst those trials that recommend an MTD\n")
+}
+
+#####################################################################
+#
+# threep3 - Generates all possible 3+3 trial pathways, probabilities
+#            of occurrence, MTD recommendation and sample size
+# AUTHOR: Graham Wheeler
+#
+# ARGUMENTS
+# truep - vector of probabilities for DLT at each dose level
+#              to be investigated
+#    dose		--> optional vector of dose labels (for printing and plotting purposes)
+#
+# VALUES
+#       "prob" - probability of each trial occurring
+#       "ssize" - sample size per trial
+#       "mtd" - final MTD recommendation per trial
+#	   "exp" - experimentation proportions across all possible 3+3 trials
+#       "truep" - true vector of probabilities
+#
+####################################################################
+
+threep3<-function(truep,dose=NULL){
+	# Check that dose is the same length as truep
+	if(!is.null(dose) & length(dose)!=length(truep)) stop("Length of 'dose' must be the same as the length of 'truep'.")
+
+	# Define number of doses and max. cohort number
+	# 'mcplus1' used in computation
+	doses<-length(truep)
+	mcohort<-2*doses
+	mcplus1<-mcohort+1
+
+	# Begin deriving pathways
+	pmat<-as.data.frame(matrix(NA,nrow=1,ncol=2*mcplus1+1))
+	colnames(pmat)<-c("stop","desc",paste(c("d","tox"),rep(1:mcohort,each=2)),paste("d",mcplus1))
+	pmat[1,1:3]<-c(0,0,1)
+	pmat<-pmat[rep(seq_len(nrow(pmat)), rep(4,nrow(pmat))),]
+	pmat[,"tox 1"]<-c(0,1,2,3)
+
+	pmat[pmat[,"tox 1"]==0,"d 2"]<-2
+	pmat[pmat[,"tox 1"]==1,"d 2"]<-1
+	pmat[pmat[,"tox 1"]>1,"stop"]<-1
+	pmat[pmat[,"tox 1"]>1,"desc"]<-1
+	stopped.pmat<-pmat[pmat$stop==1,-2]
+
+	# Probabilties of stopped 3+3 trials occuring
+	dose.mat<-stopped.pmat[,grep("d",names(stopped.pmat))]
+	tox.mat<-stopped.pmat[,grep("tox",names(stopped.pmat))]
+	prob<-apply(matrix(dbinom(as.matrix(tox.mat),3,truep[as.matrix(dose.mat)]),nrow=nrow(dose.mat)),1,prod,na.rm=T)
+
+	# Calculate sample size 
+	ssize<-3*apply(!is.na(stopped.pmat[,grep("d",names(stopped.pmat))]),1,sum)
+
+	# Determine MTD per stopped trial
+	last.cohort<-apply(!is.na(stopped.pmat[,grep("d",names(stopped.pmat))]),1,sum)
+	last.drug.column<-paste("d",last.cohort)
+	last.drug<-sapply(1:nrow(stopped.pmat),function(j){stopped.pmat[j,last.drug.column[j]]})
+	previous.drug.column<-paste("d",last.cohort-1)
+	previous.drug<-sapply(1:nrow(stopped.pmat),function(j){ifelse(previous.drug.column[j]=="d 0",0,stopped.pmat[j,previous.drug.column[j]])})
+	last.tox.column<-paste("tox",last.cohort)
+	last.tox<-sapply(1:nrow(stopped.pmat),function(j){stopped.pmat[j,last.tox.column[j]]})
+	mtd<-rep(NA,nrow(stopped.pmat))	
+	mtd[last.tox==0]<-last.drug[last.tox==0]	
+	mtd[last.tox==1 & previous.drug==last.drug]<-last.drug[last.tox==1 & previous.drug==last.drug]-1
+	mtd[last.tox==1 & previous.drug!=last.drug]<-last.drug[last.tox==1 & previous.drug!=last.drug]
+	mtd[last.tox>1]<-last.drug[last.tox>1]-1
+
+	# Prob. that each dose is experimented on and trial occurs
+	exp<-sapply(1:doses,function(j){sum(3*(stopped.pmat[,grep("d",names(stopped.pmat))]==j)*prob/ssize,na.rm=T)})
+
+	# Number of subjects who have DLT per trial
+	dlt.no<-apply(stopped.pmat[,grep("tox",names(stopped.pmat))],1,sum,na.rm=T)
+
+	for(i in 3:mcplus1){
+	 cat(paste(round(100*i/mcplus1),"% complete\n",sep=""))  
+	 dd<-as.character(paste("d",i))
+	 td<-as.character(paste("tox",i))
+	 dc<-as.character(paste("d",i-1))
+	 tc<-as.character(paste("tox",i-1))
+      db<-as.character(paste("d",i-2))
+	 tb<-as.character(paste("tox",i-2))
+
+	 ## Creates new data.frame with 1, 2, or 3 toxicities for every continued trial
+	 pmat<-pmat[rep(which(pmat[,"stop"]==0), each=4),]
+	 pmat[,tc]<-0:3
+	
+	 pmat[pmat[,tc]==0 & pmat[,"desc"]==0 & pmat[,dc]+1 <=doses,dd]<- pmat[pmat[,tc]==0 & pmat[,"desc"]==0 & pmat[,dc]+1 <=doses,dc]+1
+	 pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==0,dd]<- pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==0,dc]
+	 pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==1 & pmat[,dc]-1 >=1 ,dd]<- pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==1,dc]-1
+	 pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==1 & pmat[,dc]-1 >=1,"desc"]<- 1
+	 pmat[pmat[,tc]>1 & pmat[,dc]-1 >=1,dd]<- pmat[pmat[,tc]>1 & pmat[,dc]-1>=1 ,dc]-1
+	 pmat[pmat[,tc]>1 & pmat[,dc]-1 >=1,"desc"]<- 1
+
+	 excluding.dd<-names(pmat)[grepl("d ",names(pmat)) & names(pmat)!=dd]
+      cnt<-apply(pmat[!is.na(pmat[,dd]),dd]==pmat[!is.na(pmat[,dd]),excluding.dd],1,sum,na.rm=T)
+
+	 pmat[!is.na(pmat[,dd]),dd][cnt>1]<-NA
+ 	 pmat[is.na(pmat[,dd]),"stop"]<-1
+  	 stopped.pmat<-pmat[pmat$stop==1,-2]
+
+      # Probabilties of stopped 3+3 trials occuring
+	 dose.mat<-stopped.pmat[,grep("d",names(stopped.pmat))[1:(i-1)]]
+	 tox.mat<-stopped.pmat[,grep("tox",names(stopped.pmat))[1:(i-1)]]
+
+	
+	 # Add these probabilities to prob
+	 prob.new<-apply(matrix(dbinom(as.matrix(tox.mat),3,truep[as.matrix(dose.mat)]),nrow=nrow(dose.mat)),1,prod,na.rm=T)
+	 prob<-c(prob,prob.new)
+
+ 	 # Calculate sample size and determine MTD per stopped trial
+	 # Add them to existing ssize and mtd vectors
+	 ssize.new<-rep(3*(i-1),nrow(stopped.pmat))
+	 ssize<-c(ssize,ssize.new)
+
+	 last.drug<-stopped.pmat[,dc]
+	 previous.drug<-stopped.pmat[,db]
+	 last.tox<-stopped.pmat[,tc]
+
+	 mtd.new<-rep(NA,nrow(stopped.pmat))
+	 mtd.new[last.tox==0]<-last.drug[last.tox==0]	
+      mtd.new[last.tox==1 & previous.drug==last.drug]<-last.drug[last.tox==1 & previous.drug==last.drug]-1
+	 mtd.new[last.tox==1 & previous.drug!=last.drug]<-last.drug[last.tox==1 & previous.drug!=last.drug]
+	 mtd.new[last.tox>1]<-last.drug[last.tox>1]-1
+      mtd<-c(mtd,mtd.new)
+	
+	# Prob. that each dose is experimented on and trial occurs (summing over all trials)
+	exp<-exp+sapply(1:doses,function(j){sum(3*(stopped.pmat[,grep("d",names(stopped.pmat))]==j)*prob.new/ssize.new,na.rm=T)})
+
+	# Number of subjects who have DLT per trial
+	dlt.no<-c(dlt.no,apply(stopped.pmat[,grep("tox",names(stopped.pmat))],1,sum,na.rm=T))
+
+}
+	obj<-list(prob=prob,ssize=ssize,mtd=mtd,exp=exp,dlt.no=dlt.no,truep=truep,dose=dose)
+	class(obj)<-"threep3"
+	return(obj)
+}
+
+
 
 #-----------------------------------------------------------------------
 ## HT Gamma

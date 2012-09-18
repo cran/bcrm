@@ -1,3 +1,8 @@
+Version 0.4 (18th September 2012)
+-------------
+* Simulations now allow the chosen Bayesian design to be compared alongside a traditional 3+3 algorithmic design.
+* Corrects an error where simulation trajectories were not being plotted when specifying the argument trajectories = TRUE inside plot.bcrm.sim
+
 Version 0.3 (1st May 2012)
 -------------
 * Stores posterior summaries after each step of an escalation, if a trial is conducted interactivey. These summaries are now returned in the "ndose" componenet of the bcrm object. The component "alpha" is now redundant and has been removed.

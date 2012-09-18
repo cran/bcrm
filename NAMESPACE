@@ -4,10 +4,13 @@ Posterior.exact,
 Posterior.BRugs,
 Posterior.R2WinBUGS,
 getprior,
-find.x
+find.x,
+threep3
 )
 
 S3method(print, bcrm)
 S3method(print,bcrm.sim)
+S3method(print,threep3)
 S3method(plot, bcrm)
 S3method(plot, bcrm.sim)
+S3method(plot,threep3)

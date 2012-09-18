@@ -9,7 +9,7 @@ Print method for a trial or series of trials conducted using a \code{\link{bcrm}
 }
 \usage{
 \method{print}{bcrm}(x, \ldots)
-\method{print}{bcrm.sim}(x, tox.cutpoints = NULL, trajectories = FALSE, \ldots)
+\method{print}{bcrm.sim}(x, tox.cutpoints = NULL, trajectories = FALSE, threep3 = FALSE, \ldots)
 }
 \arguments{
   \item{x}{
@@ -21,6 +21,9 @@ An optional argument passed to \code{print.bcrm.sim} specifying the cutpoints of
  \item{trajectories}{
 Should the individual simulation dose and outcome trajectories be returned? Defaults to FALSE. 
 }
+ \item{threep3}{
+Should operating characteristics of a standard 3+3 rule-based design be displayed alongside those from the \code{bcrm} design? Defaults to \code{FALSE}.
+}
  \item{...}{Further arguments passed to or from other methods}
 }
 \details{
@@ -31,6 +34,7 @@ If a simulation study is conducted, then the following operating characteristics
 	\item{Recommendation proportion}{Proportion of trials that recommend each of the dose levels as the final maximum tolerated dose (i.e. with toxicity "closest" to the target toxicity level), and the associated regions of true toxicity for the recommended MTDs}
 }
 If \code{trajectories = TRUE} then the dose level administered and outcome observed are returned as matrices for every patient (column) in every simulation (row). 
+If \code{threep3 = TRUE} then the operating characteristics of the standard 3+3 design are displayed alongside those of the \code{bcrm} design (see \code{\link{threep3}} for more details).
 }
 
 
@@ -38,5 +42,5 @@ If \code{trajectories = TRUE} then the dose level administered and outcome obser
 Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
 }
 \seealso{
-\code{\link{bcrm}}
+\code{\link{bcrm}}, \code{\link{threep3}}
 }

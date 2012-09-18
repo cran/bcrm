@@ -1,0 +1,38 @@
+\name{print.threep3}
+\alias{print.threep3}
+\title{
+Print information regarding the operating characteristics of a standard 3+3 design
+}
+\description{
+Print method for a 3+3 design specified using a \code{\link{threep3}}. 
+}
+\usage{
+\method{print}{threep3}(x, tox.cutpoints = NULL, dose = NULL, \ldots)
+}
+\arguments{
+  \item{x}{
+An object of class "threep3" as returned by \code{\link{threep3}}
+}
+ \item{tox.cutpoints}{
+An optional argument passed to \code{print.threep3} specifying the cutpoints of toxicity for which the operating characteristics are to be categorised. Defaults to \code{seq(from=0,to=1,by=0.2)}
+}
+ \item{dose}{Optional vector of length \code{k} of actual doses for presentation purposes
+}
+ \item{...}{Further arguments passed to or from other methods}
+}
+\details{
+The following operating characteristics are printed for the standard 3+3 design:
+\describe{
+	\item{Sample size}{Mean, minimum and maximum sample size of the design}
+	\item{Experimentation proportion}{Proportion of patients recruited to each dose, and to each true region of toxicity, on average}
+	\item{Recommendation proportion}{Proportion of 3+3 trials that would recommend each of the dose levels as the final maximum tolerated dose (see \code{\link{threep3}} for definition of the MTD), and the associated regions of true toxicity for the recommended MTDs.}
+}
+}
+
+
+\author{
+Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
+}
+\seealso{
+\code{\link{threep3}}
+}
