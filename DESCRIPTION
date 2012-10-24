@@ -2,8 +2,8 @@ Package: bcrm
 Type: Package
 Title: Bayesian continuous reassessment method (CRM) designs for Phase
         I dose-finding trials.
-Version: 0.4
-Date: 2012-09-18
+Version: 0.4.1
+Date: 2012-10-24
 Author: Michael Sweeting
 Maintainer: Michael Sweeting <michael.sweeting@mrc-bsu.cam.ac.uk>
 Description: This package implements a wide variety of one and
@@ -15,6 +15,6 @@ License: GPL (>= 2)
 LazyLoad: yes
 Depends: mvtnorm, ggplot2 (>= 0.9.2), grid
 Suggests: R2WinBUGS, BRugs
-Packaged: 2012-09-18 16:03:37 UTC; michaels
+Packaged: 2012-10-24 14:10:13 UTC; michaels
 Repository: CRAN
-Date/Publication: 2012-09-18 18:24:18
+Date/Publication: 2012-10-24 14:34:16

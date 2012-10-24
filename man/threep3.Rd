@@ -54,15 +54,17 @@ An object of class "threep3" is a list with the following components:
 }
 
 \author{
-Graham Wheeler \email{graham.wheeler@mrc-bsu.cam.ac.uk} and Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
+Graham Wheeler \email{graham.wheeler@mrc-bsu.cam.ac.uk} and
+
+Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
 }
 \seealso{
 \code{\link{threep3}}
 }
 
 \examples{
-## What are the operating characteristics of a standard 3+3 design if we conside only the first 12 doses of the
-## dose-escalation cancer trial example as described in Neuenschwander et al 2008.
+## What are the operating characteristics of a standard 3+3 design if we conside only the first 
+## 12 doses of the dose-escalation cancer trial example as described in Neuenschwander et al 2008.
 ## Pre-defined doses
 dose<-c(1,2.5,5,10,15,20,25,30,40,50,75,100)
 ## Pre-specified probabilities of toxicity

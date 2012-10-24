@@ -9,12 +9,12 @@ Implements a wide variety of Bayesian CRM designs, including 1-parameter, 2-para
 }
 \usage{
 bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL), 
-	tox = NULL, notox = NULL, p.tox0 = NULL, sdose = NULL, dose = NULL, 
+     data = NULL, p.tox0 = NULL, sdose = NULL, dose = NULL, 
      ff, prior.alpha, cohort = 3, target.tox, constrain = TRUE,
      sdose.calculate = "mean", pointest = "plugin", tox.cutpoints = NULL,
-	loss = NULL, start = NULL, simulate = FALSE, nsims = 1, truep = NULL, 
-	threep3 = FALSE, method = "exact", burnin.itr = 2000, production.itr = 2000,
-     bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, file = NULL, N)
+     loss = NULL, start = NULL, simulate = FALSE, nsims = 1, truep = NULL, 
+     threep3 = FALSE, method = "exact", burnin.itr = 2000, production.itr = 2000,
+     bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, file = NULL, N, tox, notox)
 }
 
 \arguments{
@@ -29,11 +29,13 @@ A list of stopping rules for the trial. One or more of the following options sho
 }
 
 
-  \item{tox}{
-A vector of length \code{k} listing the number of patients who have experienced the outcome (toxicity) at each dose level \code{1,...,k}. If missing, then it is assumed that no data have thus far been collected.
-}
-  \item{notox}{
-A vector of length \code{k} listing the number of patients who have not experienced the outcome (toxicity) at each dose level \code{1,...,k}. If missing, then it is assumed that no data have thus far been collected.
+  \item{data}{
+A named data frame giving information about dose and toxicity from previously recruited patients. If missing, then it is assumed that no data have thus far been collected. Contains the following variables:
+\describe{
+     \item{\code{patient}}{ Recruited patient numbers, \code{1,...,n}}
+     \item{\code{dose}}{ Dose levels of recruited patients, ranging from \code{1,...,k}}
+     \item{\code{tox}}{ An indicator variable for each patient (1=toxicity, 0=no toxicity)}   
+   } 
 }
   \item{p.tox0}{
 A vector of length \code{k} listing the prior probabilities of experiencing the outcome at each dose level \code{1,...k}. The standardised dose levels (CRM "skeleton") are formed from these probabilities using the inverse of the functional form, with a plug-in estimate for the prior mean or median of alpha, as specified in \code{ff}, \code{prior.alpha} and \code{sdose.calculate}. Alternatively standardised dose levels can be given directly using \code{sdose}.
@@ -85,7 +87,7 @@ A vector of cutpoints for toxicity intervals if these are to be used to choose n
 A vector of length \code{length(tox.cutpoints)+1} specifying the losses associated with each toxicity interval, e.g. Underdosing = 1, Target dosing =0, Excessive toxicity=1, Unacceptable toxicity=2
 }
   \item{start}{
-Dose level used at the beginning of the trial, or if data have been provided using \code{tox} and \code{notox} this is the current dose level for the last treated cohort. Required if \code{constrain=TRUE}.
+Dose level used at the beginning of the trial. Required if \code{constrain=TRUE}.
 }
   \item{simulate}{
 Should a simulation be conducted to assess operating characteristics? Defaults to \code{TRUE}. If \code{FALSE}, a single CRM trial is run interactively, allowing the user to input outcomes after each cohort is recruited.
@@ -120,6 +122,13 @@ File name where the dose-response plots are stored, in a pdf format. The program
   \item{N}{
 Final sample size (deprecated). To be replaced with \code{stop} in future versions.
 }
+  \item{tox}{
+(Deprecated). A vector of length \code{k} listing the number of patients who have experienced the outcome (toxicity) at each dose level \code{1,...,k}. 
+}
+  \item{notox}{
+(Deprecated). A vector of length \code{k} listing the number of patients who have not experienced the outcome (toxicity) at each dose level \code{1,...,k}. 
+}
+
 }
 \details{
 	\code{bcrm} implements a Bayesian continuous reassessment method (CRM) (O'Quigley \emph{et al.}, 1990); an adaptive design in which cohorts of patients are sequentially recruited into a Phase I trial. A binary toxicity outcome is assumed (e.g. Dose Limiting Toxicity / No Dose Limiting Toxicity). The current cohort are given a dose "closest" to the specified target toxicity level, as estimated from the posterior distributions of toxicity at each dose level from the patients thus far recruited. If \code{pointest="mean"} then the posterior mean probability of toxicity is used to choose the next dose. If \code{pointest="plugin"}, however, the posterior mean of the model parameter(s) is plugged-into the functional form of the dose-toxicity model. To implement an EWOC design (Babb \emph{et al.}, 1998), \code{pointest} should be a quantile, \emph{q}, between 0 and 0.5. The posterior distribution of the MTD (the dose in which the probability of toxicity is equal to the target toxicity) is then calculated and the next patient is given dose closest to the \emph{q}th quantile of the MTD distribution. 
@@ -139,15 +148,17 @@ The possible choice of dose-toxicity model can be specified using \code{ff}, and
   \deqn{d^* = f^{-1}(\code{p.tox0},\alpha= a)}{d* = f^{-1}(p.tox0,\alpha= a)}
 where \eqn{f^{-1}} is the the inverse of the chosen functional form, and the parameter(s) of the model are set equal to \eqn{a}, either the prior mean or median of \eqn{\alpha}. 
 
-Data that have already been accrued can be entered using the \code{tox} and \code{notox} arguments. A constrained CRM design can be implemented using \code{constrain=TRUE}, in which case dose-skipping is prohibited (i.e. the next cohort can only be dosed up to one dose level above the current cohort). If a constrained model is used then the starting dose must be specified using \code{start}. Alternatively, if data have already been accrued, then \code{start} must give the dose level of the most recent cohort.
+Data that have already been accrued can be entered using the \code{data} argument. A constrained CRM design can be implemented using \code{constrain=TRUE}, in which case dose-skipping is prohibited (i.e. the next cohort can only be dosed up to one dose level above the current cohort). If a constrained model is used then the starting dose must be specified using \code{start}. Alternatively, if data have already been accrued, then the dose level of the last recruited patient determines the constraint for the next patient.
 
 The prior is set using \code{prior.alpha}. For example \code{prior.alpha=list(1,1,1)} specifies a Gamma prior with shape and scale parameters both equal to one (\emph{i.e.} an Exponential(1) distribution), whilst \code{prior.alpha=list(2,0,10)} specifies a Uniform(0,10) prior. 
 
-To specify a fixed maximum sample size of size \code{m} use \code{stop=list(nmax=m)}. Alternatively, the trial can stop after \code{m2} patients have been treated at the current MTD estimate, by setting \code{stop=list(nmtd=m2)}. To stop the trial when the MTD estimate is within a certain level of precision, use \code{stop=list(precision=c(l,u))}, where \code{l} and \code{u} are the lower and upper percentage points that the MTD 95\% credible intervals for the risk of toxicity should lie within. Finally, to prevent the trial stopping too early using these rules, the argument \code{stop=list(nmin=m3)} can be used to ensure the sample size is greater than or equal to \code{m3}. Stopping rules can be used on their own or in combination.
+To specify a fixed maximum sample size of size \code{m} use \code{stop=list(nmax=m)}. Alternatively, the trial can stop after \code{m2} patients have been treated at the current MTD estimate, by setting 
+\code{stop=list(nmtd=m2)}. To stop the trial when the MTD estimate is within a certain level of precision, use \code{stop=list(precision=c(l,u))}, where \code{l} and \code{u} are the lower and upper percentage points that the MTD 95\% credible intervals for the risk of toxicity should lie within. Finally, to prevent the trial stopping too early using these rules, the argument \code{stop=list(nmin=m3)} can be used to ensure the sample size is greater than or equal to \code{m3}. Stopping rules can be used on their own or in combination.
 
 The trial can be run interactively using \code{simulate=FALSE}, where the user enters the outcomes for each new cohort,  or as a simulation study when \code{simulate=TRUE}.
 
-The default calculations use exact methods (\code{method="exact"}) to calculate the mean and quantiles for the posterior distributions, unless a 2-parameter model is specified, in which case MCMC methods must be used. The two choices for MCMC calculations are \code{method="BRugs"} or \code{method="R2WinBUGS"}, the former using the OpenBUGS software, whilst the latter uses WinBUGS. To implement these methods, users require either package to be installed on their system.
+The default calculations use exact methods (\code{method="exact"}) to calculate the mean and quantiles for the posterior distributions, unless a 2-parameter model is specified, in which case MCMC methods must be used. The two choices for MCMC calculations are 
+\code{method="BRugs"} or \code{method="R2WinBUGS"}, the former using the OpenBUGS software, whilst the latter uses WinBUGS. To implement these methods, users require either package to be installed on their system.
 
 A simulated \code{bcrm} design can be compared with the standard 3+3 rule-based method, see \code{\link{threep3}} for more details.
 }
@@ -168,7 +179,7 @@ An object of class "bcrm" is a list with the following components:
 \item{method}{The calculation method used}
 \item{pointest}{The summary estimate used to choose the next dose, see \code{pointest}}
 \item{prior.alpha}{Information about the prior used for \eqn{alpha}, see \code{prior.alpha}}
-\item{alldoses}{A vector of length \code{N} giving the dose level administered to each patient. This information is only provided for cohorts recruited subsequent to any data given using \code{tox} and \code{notox}.}
+\item{data}{A data frame with variables `patient', `dose' and `tox' listing the doses and outcomes of all patients in the trial}
 
 An object of class "bcrm.sim" is a list of length \code{nsims}. Each component is itself a list with components similar to those obtained from a "bcrm" object. The print function, \code{\link{print.bcrm.sim}} should be used to obtain operating characteristics from the simulation.
 
@@ -211,8 +222,7 @@ dose<-c(1,2.5,5,10,15,20,25,30,40,50,75,100,150,200,250)
 p.tox0<-c(0.010,0.015,0.020,0.025,0.030,0.040,0.050,0.100,0.170,0.300,0.400,0.500,0.650
   ,0.800,0.900)
 ## Data from the first 5 cohorts of 18 patients
-tox<-c(0,0,0,0,0,0,2,0,0,0,0,0,0,0,0)
-notox<-c(3,4,5,4,0,0,0,0,0,0,0,0,0,0,0)
+data<-data.frame(patient=1:18,dose=rep(c(1:4,7),c(3,4,5,4,2)),tox=rep(0:1,c(16,2)))
 ## Target toxicity level
 target.tox<-0.30
 
@@ -221,7 +231,7 @@ target.tox<-0.30
 ## Prior for alpha is lognormal with mean 0 (on log scale) 
 ## and standard deviation 1.34 (on log scale)
 ## The recommended dose for the next cohort if posterior mean is used
-Power.LN.bcrm<-bcrm(stop=list(nmax=18),tox=tox,notox=notox,p.tox0=p.tox0,dose=dose
+Power.LN.bcrm<-bcrm(stop=list(nmax=18),data=data,p.tox0=p.tox0,dose=dose
   ,ff="power",prior.alpha=list(3,0,1.34^2),target.tox=target.tox,constrain=FALSE
   ,sdose.calculate="median",pointest="mean")
 print(Power.LN.bcrm)
@@ -236,11 +246,13 @@ Power.LN.bcrm.sim<-bcrm(stop=list(nmax=36),p.tox0=p.tox0,dose=dose,ff="power"
 print(Power.LN.bcrm.sim)
 plot(Power.LN.bcrm.sim)
 
-## Comparing this CRM design with the standard 3+3 design (only considering the first 12 dose levels)
+## Comparing this CRM design with the standard 3+3 design 
+## (only considering the first 12 dose levels)
 \dontrun{
-Power.LN.bcrm.compare.sim<-bcrm(stop=list(nmax=36),p.tox0=p.tox0[1:12],dose=dose[1:12],ff="power"
-  ,prior.alpha=list(3,0,1.34^2),target.tox=target.tox,constrain=TRUE
-  ,sdose.calculate="median",pointest="mean",start=1,simulate=TRUE,nsims=50,truep=p.tox0[1:12],threep3=TRUE)
+Power.LN.bcrm.compare.sim<-bcrm(stop=list(nmax=36),p.tox0=p.tox0[1:12],dose=dose[1:12]
+  ,ff="power",prior.alpha=list(3,0,1.34^2),target.tox=target.tox,constrain=TRUE
+  ,sdose.calculate="median",pointest="mean",start=1,simulate=TRUE,nsims=50
+  ,truep=p.tox0[1:12],threep3=TRUE)
 print(Power.LN.bcrm.compare.sim,threep3=TRUE)
 plot(Power.LN.bcrm.compare.sim,threep3=TRUE)
 }
@@ -252,7 +264,7 @@ sdose<-log(dose/250)
 ## Bivariate lognormal prior for two parameters
 mu<-c(2.15,0.52)
 Sigma<-rbind(c(0.84^2,0.134),c(0.134,0.80^2))
-TwoPLogistic.mean.bcrm<-bcrm(stop=list(nmax=18),tox=tox,notox=notox,sdose=sdose
+TwoPLogistic.mean.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
   ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
   ,constrain=FALSE,pointest="mean",method="BRugs")
 print(TwoPLogistic.mean.bcrm)
@@ -260,7 +272,7 @@ plot(TwoPLogistic.mean.bcrm)
 
 ## A 2-parameter model, using an EWOC design with feasibility bound (MTD quantile) 
 ## of 0.25 to choose the next dose
-TwoPLogistic.EWOC0.25.bcrm<-bcrm(stop=list(nmax=18),tox=tox,notox=notox,sdose=sdose,dose=dose
+TwoPLogistic.EWOC0.25.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose,dose=dose
   ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
   ,pointest=0.25,method="BRugs")
 print(TwoPLogistic.EWOC0.25.bcrm)
@@ -273,7 +285,7 @@ tox.cutpoints<-c(0.2,0.35,0.6)
 ## Losses associated with toxicity intervals 
 ## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=1, (0.6,1]=2
 loss<-c(1,0,1,2)
-TwoPLogistic.tox.intervals.bcrm<-bcrm(stop=list(nmax=18),tox=tox,notox=notox,sdose=sdose
+TwoPLogistic.tox.intervals.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
   ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
   ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss,method="BRugs")
 print(TwoPLogistic.tox.intervals.bcrm)
@@ -281,7 +293,7 @@ plot(TwoPLogistic.tox.intervals.bcrm)
 ## Greater loss associated with overdosing and unacceptable toxicity
 ## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=2, (0.6,1]=4
 loss2<-c(1,0,2,4)
-TwoPLogistic.tox.intervals.2.bcrm<-bcrm(stop=list(nmax=18),tox=tox,notox=notox,sdose=sdose
+TwoPLogistic.tox.intervals.2.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
   ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
   ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss2,method="BRugs")
 print(TwoPLogistic.tox.intervals.2.bcrm)

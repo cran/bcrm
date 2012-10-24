@@ -1,3 +1,8 @@
+Version 0.4.1 (24th October 2012)
+-------------
+* New data argument allows specification of doses and toxicities of all previously recruited patients, and the sequential order in which they were entered into the trial. Arguments tox and notox in bcrm are now deprecated.
+* The dose trajectory and observed toxicities from a single trial can now be plotted using the argument trajectory = TRUE inside plot.bcrm
+
 Version 0.4 (18th September 2012)
 -------------
 * Simulations now allow the chosen Bayesian design to be compared alongside a traditional 3+3 algorithmic design.
