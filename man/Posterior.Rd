@@ -79,8 +79,15 @@ ff<-"power"
 ## Standardised doses
 sdose<-find.x(ff,p.tox0,alpha=1)
 
-## Posterior distribution of the model parameter
-posterior.samples<-Posterior.BRugs(tox,notox,sdose,ff,prior.alpha
-  ,burnin.itr=2000,production.itr=2000)
-hist(posterior.samples)
+## Posterior distribution of the model parameter using exact computation
+post.exact<-Posterior.exact(tox,notox,sdose,ff,prior.alpha)
+print(post.exact)
+
+## Posterior distribution of the model parameter using BRugs (Windows and Linux only)
+if(Sys.info()["sysname"] \%in\% c("Windows","Linux"))\{
+	post.BRugs<-Posterior.BRugs(tox,notox,sdose,ff,prior.alpha
+	  ,burnin.itr=2000,production.itr=2000)
+	print(mean(post.BRugs))
+	hist(post.BRugs)
+	\}
 }

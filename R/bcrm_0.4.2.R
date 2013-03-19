@@ -1,7 +1,9 @@
 ## Bayesian CRM - extending original code of J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 ## Now using exact inference, R2WinBUGS and BRugs 
 
-### MJS 18/10/12
+### MJS 19/03/13
+
+if(getRversion() >= "2.15.1") globalVariables(c("N1","pow","d","alpha","p2","logit<-","log.alpha","inverse","patient","toxicity","est","target.tox","q2.5","q97.5","q50","q25","q75","ndose","tox.cutpoints","xmin","ymin","xmax","ymax","Loss","Outcome","traj","Statistic","..density..","Toxicity","weight","Method","..count..","rec","obs","count","n"))
 
 # ----------------------------------------------------------------------
 # 	bcrm. Conduct a Bayesian CRM trial simulating outcomes from a true model
@@ -219,7 +221,7 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 					m<-match.tox & match.notox & match.current
 		# alternative	m<-all(results[[match]]$data[1:dim(newdata)[1],] == newdata)
 					if(m){
-						ndose<-results[[match]]$ndose[[length(results[[sim]]$ndose)+1]]
+						ndose<-results[[match]]$ndose[[length(subset.results[[sim-sub.start]]$ndose)+1]]
 						found<-TRUE
 						break
 					} else if(match!=(length(results)-1)){
@@ -492,7 +494,7 @@ Posterior.BRugs <- function(tox, notox,sdose,ff, prior.alpha, burnin.itr, produc
     {
         if (ff == "logit2")
 		TwoPLogisticLogNormal            
-	   else stopp("Functional form not currently available with specified prior distribution")
+	   else stop("Functional form not currently available with specified prior distribution")
     }    
 	path.model<-file.path(tempdir(), "model.file.txt")
 	path.data<-file.path(tempdir(), "data.file.txt")
@@ -654,23 +656,23 @@ Posterior.exact<-function(tox,notox,sdose,ff,prior.alpha){
 		rownames(dose.quantiles)<-c("2.5%","25%","50%","75%","97.5%")
 	} else {
 		## VECTORISED FORM OF LIK
-		lik<-function(dose,tox,notox,alpha){
+		lik.2param<-function(dose,tox,notox,alpha){
 			l<-rep(1,nrow(alpha))
 			for(d in 1:length(dose)){
 				l<-l*wmodel(dose[d],alpha)^tox[d]*(1-wmodel(dose[d],alpha))^notox[d]
 			}
 			l
 		}
-		joint.posterior<-function(alpha1,alpha2,dose,tox,notox,prior.alpha){lik(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
-		joint.posterior.2<-function(alpha2,alpha1,dose,tox,notox,prior.alpha){lik(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
+		joint.posterior<-function(alpha1,alpha2,dose,tox,notox,prior.alpha){lik.2param(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
+		joint.posterior.2<-function(alpha2,alpha1,dose,tox,notox,prior.alpha){lik.2param(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
 		marginal.alpha1<-function(alpha1,dose,tox,notox,prior.alpha){sapply(alpha1,function(a1){integrate(joint.posterior.2,0,Inf,alpha1=a1,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}	
 		marginal.alpha2<-function(alpha2,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(joint.posterior,0,Inf,alpha2=a2,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
 		int.alpha1.mean<-function(alpha1,dose,tox,notox,prior.alpha){alpha1*marginal.alpha1(alpha1,dose,tox,notox,prior.alpha)}
 		int.alpha2.mean<-function(alpha2,dose,tox,notox,prior.alpha){alpha2*marginal.alpha2(alpha2,dose,tox,notox,prior.alpha)}
-		int.dose.mean<-function(alpha1,alpha2,new.dose,dose,tox,notox,prior.alpha){wmodel(new.dose,cbind(alpha1,alpha2))*joint.posterior(alpha1,alpha2,dose,tox,notox,prior.alpha)}
-		int.dose.mean.2<-function(alpha2,new.dose,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(int.dose.mean,0,Inf,alpha2=a2,new.dose=new.dose,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
-		int.dose.sd<-function(alpha1,alpha2,new.dose,dose.mean,dose,tox,notox,prior.alpha){(wmodel(new.dose,cbind(alpha1,alpha2))-dose.mean)^2*joint.posterior(alpha1,alpha2,dose,tox,notox,prior.alpha)}
-		int.dose.sd.2<-function(alpha2,new.dose,dose.mean,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(int.dose.sd,0,Inf,alpha2=a2,new.dose=new.dose,dose.mean=dose.mean,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
+		int.dose.mean.2param<-function(alpha1,alpha2,new.dose,dose,tox,notox,prior.alpha){wmodel(new.dose,cbind(alpha1,alpha2))*joint.posterior(alpha1,alpha2,dose,tox,notox,prior.alpha)}
+		int.dose.mean.2<-function(alpha2,new.dose,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(int.dose.mean.2param,0,Inf,alpha2=a2,new.dose=new.dose,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
+		int.dose.sd.2param<-function(alpha1,alpha2,new.dose,dose.mean,dose,tox,notox,prior.alpha){(wmodel(new.dose,cbind(alpha1,alpha2))-dose.mean)^2*joint.posterior(alpha1,alpha2,dose,tox,notox,prior.alpha)}
+		int.dose.sd.2<-function(alpha2,new.dose,dose.mean,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(int.dose.sd.2param,0,Inf,alpha2=a2,new.dose=new.dose,dose.mean=dose.mean,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
 
 		norm.constant<-integrate(marginal.alpha2,0,Inf,dose=data.dose,tox=data.tox,notox=data.notox,prior.alpha=prior.alpha,rel.tol=.Machine$double.eps^0.5)[[1]]
 		alpha1.mean<-integrate(int.alpha1.mean,0,Inf,dose=data.dose,tox=data.tox,notox=data.notox,prior.alpha=prior.alpha,rel.tol=.Machine$double.eps^0.5)[[1]]/norm.constant
@@ -757,21 +759,21 @@ Posterior.exact.sim<-function(tox,notox,sdose,ff,prior.alpha,pointest){
 		} 
 	} else {
 		## VECTORISED FORM OF LIK
-		lik<-function(dose,tox,notox,alpha){
+		lik.2param<-function(dose,tox,notox,alpha){
 			l<-rep(1,nrow(alpha))
 			for(d in 1:length(dose)){
 				l<-l*wmodel(dose[d],alpha)^tox[d]*(1-wmodel(dose[d],alpha))^notox[d]
 			}
 			l
 		}
-		joint.posterior<-function(alpha1,alpha2,dose,tox,notox,prior.alpha){lik(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
-		joint.posterior.2<-function(alpha2,alpha1,dose,tox,notox,prior.alpha){lik(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
+		joint.posterior<-function(alpha1,alpha2,dose,tox,notox,prior.alpha){lik.2param(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
+		joint.posterior.2<-function(alpha2,alpha1,dose,tox,notox,prior.alpha){lik.2param(dose,tox,notox,cbind(alpha1,alpha2))*prior(cbind(alpha1,alpha2),prior.alpha)}
 		marginal.alpha1<-function(alpha1,dose,tox,notox,prior.alpha){sapply(alpha1,function(a1){integrate(joint.posterior.2,0,Inf,alpha1=a1,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}	
 		marginal.alpha2<-function(alpha2,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(joint.posterior,0,Inf,alpha2=a2,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
 		int.alpha1.mean<-function(alpha1,dose,tox,notox,prior.alpha){alpha1*marginal.alpha1(alpha1,dose,tox,notox,prior.alpha)}
 		int.alpha2.mean<-function(alpha2,dose,tox,notox,prior.alpha){alpha2*marginal.alpha2(alpha2,dose,tox,notox,prior.alpha)}
-		int.dose.mean<-function(alpha1,alpha2,new.dose,dose,tox,notox,prior.alpha){wmodel(new.dose,cbind(alpha1,alpha2))*joint.posterior(alpha1,alpha2,dose,tox,notox,prior.alpha)}
-		int.dose.mean.2<-function(alpha2,new.dose,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(int.dose.mean,0,Inf,alpha2=a2,new.dose=new.dose,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
+		int.dose.mean.2param<-function(alpha1,alpha2,new.dose,dose,tox,notox,prior.alpha){wmodel(new.dose,cbind(alpha1,alpha2))*joint.posterior(alpha1,alpha2,dose,tox,notox,prior.alpha)}
+		int.dose.mean.2<-function(alpha2,new.dose,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(int.dose.mean.2param,0,Inf,alpha2=a2,new.dose=new.dose,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
 		int.dose.sd<-function(alpha1,alpha2,new.dose,dose.mean,dose,tox,notox,prior.alpha){(wmodel(new.dose,cbind(alpha1,alpha2))-dose.mean)^2*joint.posterior(alpha1,alpha2,dose,tox,notox,prior.alpha)}
 		int.dose.sd.2<-function(alpha2,new.dose,dose.mean,dose,tox,notox,prior.alpha){sapply(alpha2,function(a2){integrate(int.dose.sd,0,Inf,alpha2=a2,new.dose=new.dose,dose.mean=dose.mean,dose=dose,tox=tox,notox=notox,prior.alpha=prior.alpha)$value})}
 

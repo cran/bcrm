@@ -1,3 +1,8 @@
+Version 0.4.2 (19th March 2013)
+-------------
+* Corrects bug in simulation studies that do not use exact.sim computation, whereby an error is returned if more than 100 simulations are performed.
+* Restricts bcrm and Posterior.BRugs examples to Windows and Linux Operating Systems where method="BRugs" is used. Hence Mac version should now compile on CRAN.
+
 Version 0.4.1 (24th October 2012)
 -------------
 * New data argument allows specification of doses and toxicities of all previously recruited patients, and the sequential order in which they were entered into the trial. Arguments tox and notox in bcrm are now deprecated.

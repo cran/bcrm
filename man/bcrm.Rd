@@ -264,41 +264,52 @@ sdose<-log(dose/250)
 ## Bivariate lognormal prior for two parameters
 mu<-c(2.15,0.52)
 Sigma<-rbind(c(0.84^2,0.134),c(0.134,0.80^2))
+## Using BRugs if possible (Windows and Linux only)
+method<-ifelse(Sys.info()["sysname"] \%in\% c("Windows","Linux"),"BRugs","exact")
 TwoPLogistic.mean.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
   ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
-  ,constrain=FALSE,pointest="mean",method="BRugs")
+  ,constrain=FALSE,pointest="mean",method=method)
 print(TwoPLogistic.mean.bcrm)
 plot(TwoPLogistic.mean.bcrm)
 
 ## A 2-parameter model, using an EWOC design with feasibility bound (MTD quantile) 
 ## of 0.25 to choose the next dose
-TwoPLogistic.EWOC0.25.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose,dose=dose
-  ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
-  ,pointest=0.25,method="BRugs")
-print(TwoPLogistic.EWOC0.25.bcrm)
-plot(TwoPLogistic.EWOC0.25.bcrm)
+## Requires BRugs or R2WinBUGS (Windows and Linux only) 
+\dontrun{
+if(Sys.info()["sysname"] \%in\% c("Windows","Linux"))\{
+	TwoPLogistic.EWOC0.25.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose,dose=dose
+		  ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
+		  ,pointest=0.25,method="BRugs")
+	print(TwoPLogistic.EWOC0.25.bcrm)
+	plot(TwoPLogistic.EWOC0.25.bcrm)
+\}
+}
 
 ## A 2-parameter model, using a loss function based on intervals of toxicity to choose
 ## the next dose
-## Toxicity cut-points
-tox.cutpoints<-c(0.2,0.35,0.6)
-## Losses associated with toxicity intervals 
-## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=1, (0.6,1]=2
-loss<-c(1,0,1,2)
-TwoPLogistic.tox.intervals.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
-  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
-  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss,method="BRugs")
-print(TwoPLogistic.tox.intervals.bcrm)
-plot(TwoPLogistic.tox.intervals.bcrm)
-## Greater loss associated with overdosing and unacceptable toxicity
-## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=2, (0.6,1]=4
-loss2<-c(1,0,2,4)
-TwoPLogistic.tox.intervals.2.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
-  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
-  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss2,method="BRugs")
-print(TwoPLogistic.tox.intervals.2.bcrm)
-plot(TwoPLogistic.tox.intervals.2.bcrm)
-
+## Requires BRugs or R2WinBUGS (Windows and Linux only) 
+\dontrun{
+if(Sys.info()["sysname"] \%in\% c("Windows","Linux"))\{
+	## Toxicity cut-points
+	tox.cutpoints<-c(0.2,0.35,0.6)
+	## Losses associated with toxicity intervals 
+	## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=1, (0.6,1]=2
+	loss<-c(1,0,1,2)
+	TwoPLogistic.tox.intervals.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
+	  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
+	  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss,method="BRugs")
+	print(TwoPLogistic.tox.intervals.bcrm)
+	plot(TwoPLogistic.tox.intervals.bcrm)
+	## Greater loss associated with overdosing and unacceptable toxicity
+	## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=2, (0.6,1]=4
+	loss2<-c(1,0,2,4)
+	TwoPLogistic.tox.intervals.2.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
+	  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
+	  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss2,method="BRugs")
+	print(TwoPLogistic.tox.intervals.2.bcrm)
+	plot(TwoPLogistic.tox.intervals.2.bcrm)
+\}
+}
 
 }
 
