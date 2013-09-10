@@ -28,6 +28,9 @@ Given a posterior (or prior) sample of the parameters, this function inverts the
 \author{
 Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}, drawing on code originally developed by J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 }
+\references{
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+}
 \seealso{
 \code{\link{bcrm}}, \code{\link{getprior}}, \code{\link{Posterior.exact}}, \code{\link{Posterior.BRugs}}, \code{\link{Posterior.R2WinBUGS}}
 }
@@ -58,12 +61,10 @@ sdose<-find.x(ff,p.tox0,alpha=1)
 
 ## Posterior distribution of the MTD (on standardised dose scale) using data 
 ## from the cancer trial described in Neuenschwander et al 2008.
-## Using BRugs (Windows and Linux only)
-if(Sys.info()["sysname"] \%in\% c("Windows","Linux"))\{
-	posterior.samples<-Posterior.BRugs(tox,notox,sdose,ff,prior.alpha
-	  ,burnin.itr=2000,production.itr=2000)
-	posterior.mtd<-find.x(ff,target.tox,alpha=posterior.samples)
-	hist(posterior.mtd)
-\}
+## Using rjags
+posterior.samples<-Posterior.rjags(tox,notox,sdose,ff,prior.alpha
+  ,burnin.itr=2000,production.itr=2000)
+posterior.mtd<-find.x(ff,target.tox,alpha=posterior.samples)
+hist(posterior.mtd)
 
 }

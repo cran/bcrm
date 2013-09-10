@@ -28,6 +28,9 @@ A vector of size \code{n} is returned from the specified prior distribution.
 \author{
 Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}, drawing on code originally developed by J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 }
+\references{
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+}
 \seealso{
 \code{\link{bcrm}}, \code{\link{find.x}}
 }

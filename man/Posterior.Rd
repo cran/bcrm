@@ -1,5 +1,6 @@
 \name{Posterior}
 \alias{Posterior.exact}
+\alias{Posterior.rjags}
 \alias{Posterior.BRugs}
 \alias{Posterior.R2WinBUGS}
 \title{
@@ -10,6 +11,7 @@ Given the prior, functional form of the dose-toxicity model, and data, this func
 }
 \usage{
 Posterior.exact(tox,notox,sdose,ff,prior.alpha)
+Posterior.rjags(tox,notox,sdose,ff,prior.alpha,burnin.itr,production.itr)
 Posterior.BRugs(tox,notox,sdose,ff,prior.alpha,burnin.itr,production.itr)
 Posterior.R2WinBUGS(tox,notox,sdose,ff,prior.alpha,burnin.itr,production.itr
   ,bugs.directory)
@@ -56,6 +58,9 @@ Directory that contains the WinBUGS executable if \code{method="R2WinBUGS"}. Def
 \author{
 Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
 }
+\references{
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+}
 \seealso{
 \code{\link{bcrm}}
 }
@@ -83,7 +88,13 @@ sdose<-find.x(ff,p.tox0,alpha=1)
 post.exact<-Posterior.exact(tox,notox,sdose,ff,prior.alpha)
 print(post.exact)
 
-## Posterior distribution of the model parameter using BRugs (Windows and Linux only)
+## Posterior distribution of the model parameter using rjags
+post.rjags<-Posterior.rjags(tox,notox,sdose,ff,prior.alpha
+  ,burnin.itr=2000,production.itr=2000)
+print(mean(post.rjags))
+hist(post.rjags)
+
+## Posterior distribution of the model parameter using BRugs (Windows and i386 Linux only)
 if(Sys.info()["sysname"] \%in\% c("Windows","Linux"))\{
 	post.BRugs<-Posterior.BRugs(tox,notox,sdose,ff,prior.alpha
 	  ,burnin.itr=2000,production.itr=2000)

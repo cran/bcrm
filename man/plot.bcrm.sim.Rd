@@ -32,6 +32,9 @@ If \code{threep3 = TRUE} then the operating characteristics of the standard 3+3 
 \author{
 Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
 }
+\references{
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+}
 \seealso{
 \code{\link{print.bcrm.sim}}, \code{\link{bcrm}}, \code{\link{threep3}}
 }

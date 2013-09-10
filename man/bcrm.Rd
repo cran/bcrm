@@ -2,7 +2,7 @@
 \alias{bcrm}
 
 \title{
-Bayesian continuous reassessment method (CRM) designs for Phase I dose escalation trials.
+Bayesian continual reassessment method (CRM) designs for Phase I dose escalation trials.
 }
 \description{
 Implements a wide variety of Bayesian CRM designs, including 1-parameter, 2-parameter and Escalation With Overdose Control (EWOC) designs. The program can run interactively, allowing the user to enter outcomes after each cohort has been recruited, or via simulation to assess operating characteristics.
@@ -14,7 +14,8 @@ bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL),
      sdose.calculate = "mean", pointest = "plugin", tox.cutpoints = NULL,
      loss = NULL, start = NULL, simulate = FALSE, nsims = 1, truep = NULL, 
      threep3 = FALSE, method = "exact", burnin.itr = 2000, production.itr = 2000,
-     bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, file = NULL, N, tox, notox)
+     bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, file = NULL, 
+     N, tox, notox)
 }
 
 \arguments{
@@ -102,7 +103,7 @@ A vector of length k giving the true probabilities of the outcome (toxicity) at 
 Should operating characteristics of a standard 3+3 rule-based design be calculated, for comparison with \code{bcrm} design? Defaults to \code{FALSE}. Only used in a simulation study, i.e. when \code{simulate=TRUE}.
 }
   \item{method}{
-Optimisation method: options are \code{"exact"} (the default), \code{"BRugs"}, or \code{"R2WinBUGS"}.
+Optimisation method: options are \code{"exact"} (the default), \code{"rjags"}, \code{"BRugs"}, or \code{"R2WinBUGS"}.
 }
   \item{burnin.itr}{
 Number of burn-in iterations (default 2000).
@@ -131,7 +132,7 @@ Final sample size (deprecated). To be replaced with \code{stop} in future versio
 
 }
 \details{
-	\code{bcrm} implements a Bayesian continuous reassessment method (CRM) (O'Quigley \emph{et al.}, 1990); an adaptive design in which cohorts of patients are sequentially recruited into a Phase I trial. A binary toxicity outcome is assumed (e.g. Dose Limiting Toxicity / No Dose Limiting Toxicity). The current cohort are given a dose "closest" to the specified target toxicity level, as estimated from the posterior distributions of toxicity at each dose level from the patients thus far recruited. If \code{pointest="mean"} then the posterior mean probability of toxicity is used to choose the next dose. If \code{pointest="plugin"}, however, the posterior mean of the model parameter(s) is plugged-into the functional form of the dose-toxicity model. To implement an EWOC design (Babb \emph{et al.}, 1998), \code{pointest} should be a quantile, \emph{q}, between 0 and 0.5. The posterior distribution of the MTD (the dose in which the probability of toxicity is equal to the target toxicity) is then calculated and the next patient is given dose closest to the \emph{q}th quantile of the MTD distribution. 
+	\code{bcrm} implements a Bayesian continual reassessment method (CRM) (O'Quigley \emph{et al.}, 1990); an adaptive design in which cohorts of patients are sequentially recruited into a Phase I trial. A binary toxicity outcome is assumed (e.g. Dose Limiting Toxicity / No Dose Limiting Toxicity). The current cohort are given a dose "closest" to the specified target toxicity level, as estimated from the posterior distributions of toxicity at each dose level from the patients thus far recruited. If \code{pointest="mean"} then the posterior mean probability of toxicity is used to choose the next dose. If \code{pointest="plugin"}, however, the posterior mean of the model parameter(s) is plugged-into the functional form of the dose-toxicity model. To implement an EWOC design (Babb \emph{et al.}, 1998), \code{pointest} should be a quantile, \emph{q}, between 0 and 0.5. The posterior distribution of the MTD (the dose in which the probability of toxicity is equal to the target toxicity) is then calculated and the next patient is given dose closest to the \emph{q}th quantile of the MTD distribution. 
 
 Alternatively, escalation can be based on intervals of toxicity from the posterior distribution using a loss function, see Neuenschwander \emph{et al.}, 2008. To implement this approach, the user should specify the cutpoints of the toxicity intervals using \code{tox.cutpoints} and the associated losses using \code{loss}.
 
@@ -152,13 +153,14 @@ Data that have already been accrued can be entered using the \code{data} argumen
 
 The prior is set using \code{prior.alpha}. For example \code{prior.alpha=list(1,1,1)} specifies a Gamma prior with shape and scale parameters both equal to one (\emph{i.e.} an Exponential(1) distribution), whilst \code{prior.alpha=list(2,0,10)} specifies a Uniform(0,10) prior. 
 
-To specify a fixed maximum sample size of size \code{m} use \code{stop=list(nmax=m)}. Alternatively, the trial can stop after \code{m2} patients have been treated at the current MTD estimate, by setting 
+To specify a fixed maximum sample size of size \code{m} use 
+\code{stop=list(nmax=m)}. Alternatively, the trial can stop after \code{m2} patients have been treated at the current MTD estimate, by setting 
 \code{stop=list(nmtd=m2)}. To stop the trial when the MTD estimate is within a certain level of precision, use \code{stop=list(precision=c(l,u))}, where \code{l} and \code{u} are the lower and upper percentage points that the MTD 95\% credible intervals for the risk of toxicity should lie within. Finally, to prevent the trial stopping too early using these rules, the argument \code{stop=list(nmin=m3)} can be used to ensure the sample size is greater than or equal to \code{m3}. Stopping rules can be used on their own or in combination.
 
 The trial can be run interactively using \code{simulate=FALSE}, where the user enters the outcomes for each new cohort,  or as a simulation study when \code{simulate=TRUE}.
 
-The default calculations use exact methods (\code{method="exact"}) to calculate the mean and quantiles for the posterior distributions, unless a 2-parameter model is specified, in which case MCMC methods must be used. The two choices for MCMC calculations are 
-\code{method="BRugs"} or \code{method="R2WinBUGS"}, the former using the OpenBUGS software, whilst the latter uses WinBUGS. To implement these methods, users require either package to be installed on their system.
+The default calculations use exact methods (\code{method="exact"}) to calculate the mean and quantiles for the posterior distributions. There are three choices for MCMC calculations:  
+\code{method="rjags"}, \code{method="BRugs"} or \code{method="R2WinBUGS"}. The first uses the JAGS software, the second uses OpenBUGS, whilst the latter uses WinBUGS. To implement these methods, users require one or more of these packages to be installed on their system.
 
 A simulated \code{bcrm} design can be compared with the standard 3+3 rule-based method, see \code{\link{threep3}} for more details.
 }
@@ -185,7 +187,9 @@ An object of class "bcrm.sim" is a list of length \code{nsims}. Each component i
 
 }
 \references{
- O'Quigley J., Pepe M., Fisher L. Continuous reassessment method: a practical design for phase I clinical trials in cancer. \emph{Biometrics} (1990) 46: 33--48.
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+
+ O'Quigley J., Pepe M., Fisher L. Continual reassessment method: a practical design for phase I clinical trials in cancer. \emph{Biometrics} (1990) 46: 33--48.
 
  Babb J., Rogatko A., Zacks S. Cancer phase I clinical trials: efficient dose escalation with overdose control. \emph{Statistics in Medicine} (1998) 17: 1103--1120.
        
@@ -264,51 +268,46 @@ sdose<-log(dose/250)
 ## Bivariate lognormal prior for two parameters
 mu<-c(2.15,0.52)
 Sigma<-rbind(c(0.84^2,0.134),c(0.134,0.80^2))
-## Using BRugs if possible (Windows and Linux only)
-method<-ifelse(Sys.info()["sysname"] \%in\% c("Windows","Linux"),"BRugs","exact")
+## Using rjags (requires JAGS to be installed)
 TwoPLogistic.mean.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
   ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
-  ,constrain=FALSE,pointest="mean",method=method)
+  ,constrain=FALSE,pointest="mean",method="rjags")
 print(TwoPLogistic.mean.bcrm)
 plot(TwoPLogistic.mean.bcrm)
 
 ## A 2-parameter model, using an EWOC design with feasibility bound (MTD quantile) 
 ## of 0.25 to choose the next dose
-## Requires BRugs or R2WinBUGS (Windows and Linux only) 
+## Using rjags (requires JAGS to be installed)
 \dontrun{
-if(Sys.info()["sysname"] \%in\% c("Windows","Linux"))\{
-	TwoPLogistic.EWOC0.25.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose,dose=dose
-		  ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
-		  ,pointest=0.25,method="BRugs")
-	print(TwoPLogistic.EWOC0.25.bcrm)
-	plot(TwoPLogistic.EWOC0.25.bcrm)
-\}
+TwoPLogistic.EWOC0.25.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose,dose=dose
+	  ,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox,constrain=FALSE
+	  ,pointest=0.25,method="rjags")
+print(TwoPLogistic.EWOC0.25.bcrm)
+plot(TwoPLogistic.EWOC0.25.bcrm)
 }
 
 ## A 2-parameter model, using a loss function based on intervals of toxicity to choose
 ## the next dose
-## Requires BRugs or R2WinBUGS (Windows and Linux only) 
+## Using rjags (requires JAGS to be installed)
 \dontrun{
-if(Sys.info()["sysname"] \%in\% c("Windows","Linux"))\{
-	## Toxicity cut-points
-	tox.cutpoints<-c(0.2,0.35,0.6)
-	## Losses associated with toxicity intervals 
-	## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=1, (0.6,1]=2
-	loss<-c(1,0,1,2)
-	TwoPLogistic.tox.intervals.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
-	  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
-	  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss,method="BRugs")
-	print(TwoPLogistic.tox.intervals.bcrm)
-	plot(TwoPLogistic.tox.intervals.bcrm)
-	## Greater loss associated with overdosing and unacceptable toxicity
-	## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=2, (0.6,1]=4
-	loss2<-c(1,0,2,4)
-	TwoPLogistic.tox.intervals.2.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
-	  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
-	  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss2,method="BRugs")
-	print(TwoPLogistic.tox.intervals.2.bcrm)
-	plot(TwoPLogistic.tox.intervals.2.bcrm)
-\}
+## Toxicity cut-points
+tox.cutpoints<-c(0.2,0.35,0.6)
+## Losses associated with toxicity intervals 
+## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=1, (0.6,1]=2
+loss<-c(1,0,1,2)
+TwoPLogistic.tox.intervals.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
+  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
+  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss,method="rjags")
+print(TwoPLogistic.tox.intervals.bcrm)
+plot(TwoPLogistic.tox.intervals.bcrm)
+## Greater loss associated with overdosing and unacceptable toxicity
+## [0,0.2]=1, (0.2,0.35]=0, (0.35,0.6]=2, (0.6,1]=4
+loss2<-c(1,0,2,4)
+TwoPLogistic.tox.intervals.2.bcrm<-bcrm(stop=list(nmax=18),data=data,sdose=sdose
+  ,dose=dose,ff="logit2",prior.alpha=list(4,mu,Sigma),target.tox=target.tox
+  ,constrain=FALSE,tox.cutpoints=tox.cutpoints,loss=loss2,method="rjags")
+print(TwoPLogistic.tox.intervals.2.bcrm)
+plot(TwoPLogistic.tox.intervals.2.bcrm)
 }
 
 }

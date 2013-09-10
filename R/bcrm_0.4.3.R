@@ -1,7 +1,7 @@
 ## Bayesian CRM - extending original code of J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
-## Now using exact inference, R2WinBUGS and BRugs 
+## Now using exact inference, rjags, R2WinBUGS or BRugs 
 
-### MJS 19/03/13
+### MJS 10/09/13
 
 if(getRversion() >= "2.15.1") globalVariables(c("N1","pow","d","alpha","p2","logit<-","log.alpha","inverse","patient","toxicity","est","target.tox","q2.5","q97.5","q50","q25","q75","ndose","tox.cutpoints","xmin","ymin","xmax","ymax","Loss","Outcome","traj","Statistic","..density..","Toxicity","weight","Method","..count..","rec","obs","count","n"))
 
@@ -45,7 +45,7 @@ if(getRversion() >= "2.15.1") globalVariables(c("N1","pow","d","alpha","p2","log
 #    nsims	--> No. of simulations to perform if simulate==T (defaults to 1)
 # 	truep	     --> True probabilities of response at dose levels to simulate data. Only should be specified if simulate=TRUE
 #    threep3     --> If TRUE (default is FALSE) then operating characteristics of the simulated design are compared against a standard rule-based 3+3 design
-#	method      --> Optimisation method: options are "exact" (the default), "BRugs", or "R2WinBUGS"
+#	method      --> Optimisation method: options are "exact" (the default), "rjags", "BRugs", or "R2WinBUGS"
 #     burnin.itr --> No. of burn-in iterations
 #     production.itr --> No. of production iterations
 #    bugs.directory --> directory that contains the WinBUGS executable if R2WinBUGS is being used, defaults to "C:/Program Files/WinBUGS14/"
@@ -75,18 +75,18 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 	if(sdose.calculate!="mean" & sdose.calculate!="median") stop("sdose.calculate must be either `mean' or `median'")
 	if((is.character(pointest) & pointest!="mean" & pointest!="plugin") | is.numeric(pointest) & (pointest<0 | pointest>1)) stop("pointest must be either `plugin', `mean' or an EWOC feasibility quantile between 0 and 1")
 	if(is.numeric(pointest) & method=="exact") stop("EWOC design must be fitted using MCMC methods")
-	if(!is.null(tox.cutpoints) & method=="exact") stop("Escalation based on toxicity intervals must be fit using MCMC. Please specify either method='BRugs' or method='R2WinBUGS'")
+	if(!is.null(tox.cutpoints) & method=="exact") stop("Escalation based on toxicity intervals must be fit using MCMC. Please specify either method=`rjags', method='BRugs' or method='R2WinBUGS'")
 
 	if(simulate & is.null(truep)) stop("truep must be specified if simulating data")
 	if(simulate){ 
 		plot<-FALSE
 		results<-subset.results<-list()
 	}
-	if(!(method %in% c("exact","BRugs","R2WinBUGS"))) stop("method must be either `exact', `BRugs' or `R2WinBUGS'")
+	if(!(method %in% c("exact","rjags","BRugs","R2WinBUGS"))) stop("method must be either `exact', `rjags', `BRugs' or `R2WinBUGS'")
 	## Check to see if ff is one of "ht","logit1","power","logit2"
 	if((!ff %in% c("ht","logit1","power","logit2"))) stop("ff must be one of `ht', `logit1', `power' or `logit2'")
 
-	if(ff=="logit2" & method=="exact") warning("Exact method slow for 2-parameter model, suggest using BRugs (MCMC)")
+	if(ff=="logit2" & method=="exact") warning("Exact method slow for 2-parameter model, suggest using rjags (MCMC)")
 	if(constrain & is.null(start) & is.null(data)) stop("A starting dose level must be specified using `start' if constrain==TRUE")
 	if((!is.null(tox.cutpoints) & is.null(loss)) | (is.null(tox.cutpoints) & !is.null(loss))) stop("Both tox.cutpoints and loss must be specified to conduct escalation based on toxicity intervals")
 	if(!is.null(tox.cutpoints) & length(loss)!=length(tox.cutpoints)+1) stop("The number of losses must be one more than the number of cutpoints")
@@ -149,6 +149,7 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 			new.notox<-rep(0,k)
 			current<-start-1
 			alpha<-if(sim==1) switch(method
+			,rjags=getprior(prior.alpha, 10000)
 			,BRugs=getprior(prior.alpha, 10000)
 			,R2WinBUGS=getprior(prior.alpha,10000)
 			,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha)
@@ -159,6 +160,7 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 			new.notox<-as.numeric(xtabs((1-tox)~factor(dose,levels=1:k),data=data))
 			current<-as.numeric(data$dose[dim(data)[1]])
 			alpha<-if(sim==1) switch(method
+			,rjags=Posterior.rjags(new.tox,new.notox,sdose,ff,prior.alpha,burnin.itr,production.itr)
 			,BRugs=Posterior.BRugs(new.tox,new.notox,sdose,ff,prior.alpha,burnin.itr,production.itr)
 			,R2WinBUGS=Posterior.R2WinBUGS(new.tox,new.notox,sdose,ff,prior.alpha,burnin.itr,production.itr,bugs.directory)
 			,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha)
@@ -175,6 +177,7 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 		match<-1
 		if(sim==1){
 			prior.ndose<-switch(method
+				,rjags=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
 				,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
 				,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
 				,exact=nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
@@ -235,12 +238,14 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 			} 
 			if(!found){
 				alpha<-switch(method
+					,rjags=Posterior.rjags(new.tox, new.notox, sdose, ff, prior.alpha, burnin.itr, production.itr)
 					,BRugs=Posterior.BRugs(new.tox, new.notox, sdose, ff, prior.alpha, burnin.itr, production.itr)
 					,R2WinBUGS=Posterior.R2WinBUGS(new.tox, new.notox, sdose, ff, prior.alpha, burnin.itr, production.itr,bugs.directory)
 					,exact=Posterior.exact(new.tox,new.notox,sdose,ff,prior.alpha)
 					,exact.sim=Posterior.exact.sim(new.tox,new.notox,sdose,ff,prior.alpha,pointest)
 					)
 				ndose<-switch(method
+					,rjags=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
 					,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
 					,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
 					,exact=nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
@@ -278,7 +283,7 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
               	if (yn!="y" & yn=="Y") return(results)
           }
 		cat("\n Calculating operating characteristics of a standard 3+3 trial for comparison... \n")
-		results[[1]]$threep3<-threep3(truep,dose=dose) 
+		results[[1]]$threep3<-threep3(truep,start=start,dose=dose) 
 	}
 	return(results)
 }
@@ -428,6 +433,84 @@ getprior <- function(prior.alpha, n) {
 	   prior<-exp(log.prior)
     }
     return (prior)
+}
+
+# ----------------------------------------------------------------------
+#     returns the vector containing sampled data from winbug
+#
+#     tox         --> number of successes (toxicities)
+#     notox       --> number of failed patients (no-toxicities)
+#     sdose       --> vector containing the dose level
+#     ff          --> the model applied in the study
+#                    "ht" - hyperbolic tangent
+#                    "logit1" - logistic
+#                    "power" - Power
+#				  "logit2" - Two-parameter logistic
+#     prior.alpha  --> list of prior distribution information for parameter alpha
+#     burnin.itr  --> number of burn-in (adaptive) iterations
+#     production.itr --> number of production iterations
+# ----------------------------------------------------------------------
+Posterior.rjags <- function(tox, notox,sdose,ff, prior.alpha, burnin.itr, production.itr)
+{    
+  if(require(rjags) & require(R2WinBUGS)){
+    all.patient <- tox + notox
+    datan <-all.patient[all.patient!=0]
+    datas <-tox[all.patient!=0]
+    datad <-sdose[all.patient!=0]
+    k <- length(datan)
+    if (k == 1)
+    {
+        datan <- c(datan, 0)
+        datas <- c(datas, 0)
+        datad <- c(datad, 0)
+    }
+    mydata <- list(N1 = k, s = datas,n = datan,d = datad, p1 = prior.alpha[[2]], p2 = prior.alpha[[3]])
+    model.file<-if (prior.alpha[[1]] == 1)
+    	{
+        if (ff == "ht")
+            HTGamma
+        else if (ff == "logit1")
+            LogisticGamma
+        else if (ff == "power")
+            PowerGamma
+	   else stop("Functional form not currently available with specified prior distribution")
+    }
+    else if (prior.alpha[[1]] == 2)
+    {
+        if (ff == "ht")
+            HTUnif
+        else if (ff == "logit1")
+            LogisticUnif
+        else if (ff == "power")
+            PowerUnif
+	   else stop("Functional form not currently available with specified prior distribution")
+    }        
+    else if (prior.alpha[[1]] == 3)
+    {
+        if (ff == "ht")
+            HTLogNormal
+        else if (ff == "logit1")
+            LogisticLogNormal
+        else if (ff == "power")
+            PowerLogNormal
+	   else stop("Functional form not currently available with specified prior distribution")
+    }        
+    else if (prior.alpha[[1]] == 4)
+    {
+        if (ff == "logit2")
+		TwoPLogisticLogNormal            
+	   else stop("Functional form not currently available with specified prior distribution")
+    }    
+	path.model<-file.path(tempdir(), "model.file.txt")
+	write.model(model.file,path.model)
+	jagsobj<-jags.model(path.model,data=mydata,n.chains=2,quiet=TRUE)
+	update(jagsobj,n.iter=burnin.itr,progress.bar="none")
+	tt<-jags.samples(jagsobj, "alpha", n.iter=production.itr/2,progress.bar="none")
+	if(ff=="logit2"){
+		t<-cbind(c(tt$alpha[1,,]),c(tt$alpha[2,,]))
+	} else {   t<- c(tt$alpha) }
+    return(t)
+  }
 }
 
 # ----------------------------------------------------------------------
@@ -1117,7 +1200,7 @@ plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,threep3=FALSE,...){
 	} else {
 		if(threep3 & is.null(x[[1]]$threep3)){
 			cat("\n Calculating 3+3 operating characteristics....\n")
-			x[[1]]$threep3<-threep3(x[[1]]$truep)
+			x[[1]]$threep3<-threep3(x[[1]]$truep,x[[1]]$start)
 		}
 		# sample size
 		n<-sapply(x,function(i){dim(i$data)[1]})
@@ -1371,7 +1454,7 @@ print.bcrm.sim<-function(x,tox.cutpoints=NULL,trajectories=FALSE,threep3=FALSE,.
 		print(tab2)
 		if(threep3 & is.null(x[[1]]$threep3)){
 			cat("\n Calculating 3+3 operating characteristics....\n")
-			x[[1]]$threep3<-threep3(x[[1]]$truep)
+			x[[1]]$threep3<-threep3(x[[1]]$truep,x[[1]]$start)
 		}
 		if(threep3){
 			cat("\n\n******************** 3+3 operating characteristics *****************\n")
@@ -1428,6 +1511,7 @@ print.threep3<-function(x,tox.cutpoints=NULL,dose=NULL,...){
 # ARGUMENTS
 # truep - vector of probabilities for DLT at each dose level
 #              to be investigated
+# start - starting dose level for the design (defaults to 1)
 #    dose		--> optional vector of dose labels (for printing and plotting purposes)
 #
 # VALUES
@@ -1439,7 +1523,7 @@ print.threep3<-function(x,tox.cutpoints=NULL,dose=NULL,...){
 #
 ####################################################################
 
-threep3<-function(truep,dose=NULL){
+threep3<-function(truep,start=1,dose=NULL){
 	# Check that dose is the same length as truep
 	if(!is.null(dose) & length(dose)!=length(truep)) stop("Length of 'dose' must be the same as the length of 'truep'.")
 
@@ -1449,46 +1533,54 @@ threep3<-function(truep,dose=NULL){
 	mcohort<-2*doses
 	mcplus1<-mcohort+1
 
+	# Check that starting dose is not top dose
+	if(start==doses) stop("Starting dose cannot be uppermost dose")
+
 	# Begin deriving pathways
 	pmat<-as.data.frame(matrix(NA,nrow=1,ncol=2*mcplus1+1))
 	colnames(pmat)<-c("stop","desc",paste(c("d","tox"),rep(1:mcohort,each=2)),paste("d",mcplus1))
-	pmat[1,1:3]<-c(0,0,1)
+	pmat[1,1:3]<-c(0,0,start)
 	pmat<-pmat[rep(seq_len(nrow(pmat)), rep(4,nrow(pmat))),]
 	pmat[,"tox 1"]<-c(0,1,2,3)
 
-	pmat[pmat[,"tox 1"]==0,"d 2"]<-2
-	pmat[pmat[,"tox 1"]==1,"d 2"]<-1
-	pmat[pmat[,"tox 1"]>1,"stop"]<-1
+	pmat[pmat[,"tox 1"]==0,"d 2"]<-start+1
+	pmat[pmat[,"tox 1"]==1,"d 2"]<-start
+	pmat[pmat[,"tox 1"]>1 & start>1,"d 2"]<-start-1
+	pmat[pmat[,"tox 1"]>1 & start==1,"stop"]<-1
 	pmat[pmat[,"tox 1"]>1,"desc"]<-1
 	stopped.pmat<-pmat[pmat$stop==1,-2]
+	prob<-ssize<-mtd<-dlt.no<-NULL
+	exp<-0
 
-	# Probabilties of stopped 3+3 trials occuring
-	dose.mat<-stopped.pmat[,grep("d",names(stopped.pmat))]
-	tox.mat<-stopped.pmat[,grep("tox",names(stopped.pmat))]
-	prob<-apply(matrix(dbinom(as.matrix(tox.mat),3,truep[as.matrix(dose.mat)]),nrow=nrow(dose.mat)),1,prod,na.rm=T)
+	if(start==1){
+		# Probabilties of stopped 3+3 trials occuring
+		dose.mat<-stopped.pmat[,grep("d",names(stopped.pmat))]
+		tox.mat<-stopped.pmat[,grep("tox",names(stopped.pmat))]
+		prob<-apply(matrix(dbinom(as.matrix(tox.mat),3,truep[as.matrix(dose.mat)]),nrow=nrow(dose.mat)),1,prod,na.rm=T)
 
-	# Calculate sample size 
-	ssize<-3*apply(!is.na(stopped.pmat[,grep("d",names(stopped.pmat))]),1,sum)
+		# Calculate sample size 
+		ssize<-3*apply(!is.na(stopped.pmat[,grep("d",names(stopped.pmat))]),1,sum)
 
-	# Determine MTD per stopped trial
-	last.cohort<-apply(!is.na(stopped.pmat[,grep("d",names(stopped.pmat))]),1,sum)
-	last.drug.column<-paste("d",last.cohort)
-	last.drug<-sapply(1:nrow(stopped.pmat),function(j){stopped.pmat[j,last.drug.column[j]]})
-	previous.drug.column<-paste("d",last.cohort-1)
-	previous.drug<-sapply(1:nrow(stopped.pmat),function(j){ifelse(previous.drug.column[j]=="d 0",0,stopped.pmat[j,previous.drug.column[j]])})
-	last.tox.column<-paste("tox",last.cohort)
-	last.tox<-sapply(1:nrow(stopped.pmat),function(j){stopped.pmat[j,last.tox.column[j]]})
-	mtd<-rep(NA,nrow(stopped.pmat))	
-	mtd[last.tox==0]<-last.drug[last.tox==0]	
-	mtd[last.tox==1 & previous.drug==last.drug]<-last.drug[last.tox==1 & previous.drug==last.drug]-1
-	mtd[last.tox==1 & previous.drug!=last.drug]<-last.drug[last.tox==1 & previous.drug!=last.drug]
-	mtd[last.tox>1]<-last.drug[last.tox>1]-1
+		# Determine MTD per stopped trial
+		last.cohort<-apply(!is.na(stopped.pmat[,grep("d",names(stopped.pmat))]),1,sum)
+		last.drug.column<-paste("d",last.cohort)
+		last.drug<-sapply(1:nrow(stopped.pmat),function(j){stopped.pmat[j,last.drug.column[j]]})
+		previous.drug.column<-paste("d",last.cohort-1)
+		previous.drug<-sapply(1:nrow(stopped.pmat),function(j){ifelse(previous.drug.column[j]=="d 0",0,stopped.pmat[j,previous.drug.column[j]])})
+		last.tox.column<-paste("tox",last.cohort)
+		last.tox<-sapply(1:nrow(stopped.pmat),function(j){stopped.pmat[j,last.tox.column[j]]})
+		mtd<-rep(NA,nrow(stopped.pmat))	
+		mtd[last.tox==0]<-last.drug[last.tox==0]	
+		mtd[last.tox==1 & previous.drug==last.drug]<-last.drug[last.tox==1 & previous.drug==last.drug]-1
+		mtd[last.tox==1 & previous.drug!=last.drug]<-last.drug[last.tox==1 & previous.drug!=last.drug]
+		mtd[last.tox>1]<-last.drug[last.tox>1]-1
 
-	# Prob. that each dose is experimented on and trial occurs
-	exp<-sapply(1:doses,function(j){sum(3*(stopped.pmat[,grep("d",names(stopped.pmat))]==j)*prob/ssize,na.rm=T)})
+		# Prob. that each dose is experimented on and trial occurs
+		exp<-sapply(1:doses,function(j){sum(3*(stopped.pmat[,grep("d",names(stopped.pmat))]==j)*prob/ssize,na.rm=T)})
 
-	# Number of subjects who have DLT per trial
-	dlt.no<-apply(stopped.pmat[,grep("tox",names(stopped.pmat))],1,sum,na.rm=T)
+		# Number of subjects who have DLT per trial
+		dlt.no<-apply(stopped.pmat[,grep("tox",names(stopped.pmat))],1,sum,na.rm=T)
+	}
 
 	for(i in 3:mcplus1){
 	 cat(paste(round(100*i/mcplus1),"% complete\n",sep=""))  
@@ -1506,9 +1598,13 @@ threep3<-function(truep,dose=NULL){
 	 pmat[pmat[,tc]==0 & pmat[,"desc"]==0 & pmat[,dc]+1 <=doses,dd]<- pmat[pmat[,tc]==0 & pmat[,"desc"]==0 & pmat[,dc]+1 <=doses,dc]+1
 	 pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==0,dd]<- pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==0,dc]
 	 pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==1 & pmat[,dc]-1 >=1 ,dd]<- pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==1,dc]-1
+	 pmat[pmat[,tc]==0 & pmat[,"desc"]==1 ,dd]<- pmat[pmat[,tc]==0 & pmat[,"desc"]==1,dc]
+	 pmat[pmat[,tc]==1 & pmat[,"desc"]==1, dd]<- pmat[pmat[,tc]==1 & pmat[,"desc"]==1,dc]
+	 pmat[pmat[,tc]>1 & pmat[,dc]-1 >=1,"desc"]<- 1
+
 	 pmat[pmat[,tc]==1 & pmat[,"desc"]==0 & pmat[,tb]==1 & pmat[,dc]-1 >=1,"desc"]<- 1
 	 pmat[pmat[,tc]>1 & pmat[,dc]-1 >=1,dd]<- pmat[pmat[,tc]>1 & pmat[,dc]-1>=1 ,dc]-1
-	 pmat[pmat[,tc]>1 & pmat[,dc]-1 >=1,"desc"]<- 1
+	 
 
 	 excluding.dd<-names(pmat)[grepl("d ",names(pmat)) & names(pmat)!=dd]
       cnt<-apply(pmat[!is.na(pmat[,dd]),dd]==pmat[!is.na(pmat[,dd]),excluding.dd],1,sum,na.rm=T)
@@ -1517,42 +1613,45 @@ threep3<-function(truep,dose=NULL){
  	 pmat[is.na(pmat[,dd]),"stop"]<-1
   	 stopped.pmat<-pmat[pmat$stop==1,-2]
 
-      # Probabilties of stopped 3+3 trials occuring
-	 dose.mat<-stopped.pmat[,grep("d",names(stopped.pmat))[1:(i-1)]]
-	 tox.mat<-stopped.pmat[,grep("tox",names(stopped.pmat))[1:(i-1)]]
+	 if(dim(stopped.pmat)[1]>0){
+	      # Probabilties of stopped 3+3 trials occuring
+		 dose.mat<-stopped.pmat[,grep("d",names(stopped.pmat))[1:(i-1)]]
+		 tox.mat<-stopped.pmat[,grep("tox",names(stopped.pmat))[1:(i-1)]]
 
 	
-	 # Add these probabilities to prob
-	 prob.new<-apply(matrix(dbinom(as.matrix(tox.mat),3,truep[as.matrix(dose.mat)]),nrow=nrow(dose.mat)),1,prod,na.rm=T)
-	 prob<-c(prob,prob.new)
+		 # Add these probabilities to prob
+		 prob.new<-apply(matrix(dbinom(as.matrix(tox.mat),3,truep[as.matrix(dose.mat)]),nrow=nrow(dose.mat)),1,prod,na.rm=T)
+		 prob<-c(prob,prob.new)
 
- 	 # Calculate sample size and determine MTD per stopped trial
-	 # Add them to existing ssize and mtd vectors
-	 ssize.new<-rep(3*(i-1),nrow(stopped.pmat))
-	 ssize<-c(ssize,ssize.new)
+	 	 # Calculate sample size and determine MTD per stopped trial
+		 # Add them to existing ssize and mtd vectors
+		 ssize.new<-rep(3*(i-1),nrow(stopped.pmat))
+		 ssize<-c(ssize,ssize.new)
 
-	 last.drug<-stopped.pmat[,dc]
-	 previous.drug<-stopped.pmat[,db]
-	 last.tox<-stopped.pmat[,tc]
+		 last.drug<-stopped.pmat[,dc]
+		 previous.drug<-stopped.pmat[,db]
+		 last.tox<-stopped.pmat[,tc]
 
-	 mtd.new<-rep(NA,nrow(stopped.pmat))
-	 mtd.new[last.tox==0]<-last.drug[last.tox==0]	
-      mtd.new[last.tox==1 & previous.drug==last.drug]<-last.drug[last.tox==1 & previous.drug==last.drug]-1
-	 mtd.new[last.tox==1 & previous.drug!=last.drug]<-last.drug[last.tox==1 & previous.drug!=last.drug]
-	 mtd.new[last.tox>1]<-last.drug[last.tox>1]-1
-      mtd<-c(mtd,mtd.new)
+		 mtd.new<-rep(NA,nrow(stopped.pmat))
+		 mtd.new[last.tox==0]<-last.drug[last.tox==0]	
+     	 mtd.new[last.tox==1 & previous.drug==last.drug]<-last.drug[last.tox==1 & previous.drug==last.drug]-1
+		 mtd.new[last.tox==1 & previous.drug!=last.drug]<-last.drug[last.tox==1 & previous.drug!=last.drug]
+		 mtd.new[last.tox>1]<-last.drug[last.tox>1]-1
+	      mtd<-c(mtd,mtd.new)
 	
-	# Prob. that each dose is experimented on and trial occurs (summing over all trials)
-	exp<-exp+sapply(1:doses,function(j){sum(3*(stopped.pmat[,grep("d",names(stopped.pmat))]==j)*prob.new/ssize.new,na.rm=T)})
+		# Prob. that each dose is experimented on and trial occurs (summing over all trials)
+		exp<-exp+sapply(1:doses,function(j){sum(3*(stopped.pmat[,grep("d",names(stopped.pmat))]==j)*prob.new/ssize.new,na.rm=T)})
 
-	# Number of subjects who have DLT per trial
-	dlt.no<-c(dlt.no,apply(stopped.pmat[,grep("tox",names(stopped.pmat))],1,sum,na.rm=T))
-
+		# Number of subjects who have DLT per trial
+		dlt.no<-c(dlt.no,apply(stopped.pmat[,grep("tox",names(stopped.pmat))],1,sum,na.rm=T))
+	}
 }
 	obj<-list(prob=prob,ssize=ssize,mtd=mtd,exp=exp,dlt.no=dlt.no,truep=truep,dose=dose)
 	class(obj)<-"threep3"
 	return(obj)
 }
+
+
 
 
 
@@ -1680,3 +1779,4 @@ TwoPLogisticLogNormal<-function(){
 	Omega[1:2,1:2]<-inverse(p2[,])
 	log.alpha[1:2] ~ dmnorm(p1[], Omega[,])
 }
+

@@ -1,3 +1,9 @@
+Version 0.4.3 (10th September 2013)
+-------------
+* rjags can now be used instead of R2WinBUGS or BRugs
+* Allows the 3+3 design to start at any dose level (a modified 3+3)
+* Includes citation information for Journal of Statistical Software publication
+
 Version 0.4.2 (19th March 2013)
 -------------
 * Corrects bug in simulation studies that do not use exact.sim computation, whereby an error is returned if more than 100 simulations are performed.

@@ -3,6 +3,7 @@ bcrm,
 Posterior.exact,
 Posterior.BRugs,
 Posterior.R2WinBUGS,
+Posterior.rjags,
 getprior,
 find.x,
 threep3

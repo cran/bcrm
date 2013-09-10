@@ -7,24 +7,25 @@ Calculate all possible trial pathways for the standard 3+3 design, together with
  All possible pathways of a standard 3+3 design are calculated and assigned a probability of occurring. This facilitates the calculation of operating characteristics, using \code{\link{print.threep3}} and \code{\link{plot.threep3}}. 
 }
 \usage{
-threep3(truep, dose = NULL)
+threep3(truep, start = 1, dose = NULL)
 }
 \arguments{
   \item{truep}{
 A vector of length \code{k} (the number of doses being considered in the trial), with values equal to the true probabilities of toxicity at the dose levels.
 }
+ \item{start}{Starting dose level. Defaults to 1, i.e. the lowest dose level}
  \item{dose}{Optional vector of length \code{k} of actual doses for presentation purposes
 }
 }
 \details{
 The dose-escalation schema used here relates to that defined by Chang et al. (2006), which incorporates dose de-escalation also. Variations of this design exist in the literature (see Storer 1989, Reiner et al. 1999).
 
-The first cohort of three patients are administered the lowest dose. For any cohort in the trial, escalation/de-escalation proceeds as follows:
+The first cohort of three patients are administered the starting dose (usually the lowest dose). For any cohort in the trial, escalation/de-escalation proceeds as follows:
 \itemize{
 	\item If none of the three patients last treated experience a DLT, then dose the next three patients at the next highest dose level;
 	\item If one of the three patients last treated experiences a DLT, then dose the next three patients at the current dose level;
-	\item If at least two patients in the first cohort experience a DLT, or equivalently one patient in the first cohort has a DLT, followed by at least one patient in the second cohort having a DLT, the trial is stopped for safety;
-	\item The trial stops when at least two out of three to six patients experience DLTs at a specific dose level AND six patients have been dosed at the dose level below that given to the last cohort. The MTD is deemed to be the dose level below that given to the last cohort. If only three patients (rather than six) have been dosed at the dose level below, dose a further three patients at this level.
+	\item The trial stops when at least two out of three to six patients experience DLTs at a specific dose level AND six patients have been dosed at the dose level below that given to the last cohort. The MTD is deemed to be the dose level below that given to the last cohort. If less than six patients have been dosed at the dose level below, dose a further three patients at this level.
+	\item If at least two patients in the first dose level experience a DLT the trial is stopped for safety;
 }
 If dose-escalation extends to doses outside of that defined by \code{dose}, the MTD is determined to be the largest dose in \code{dose}.
 
@@ -43,6 +44,8 @@ An object of class "threep3" is a list with the following components:
 }
 
 \references{
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+
  Chang A., Ganz P., Hayes D., Kinsella T., Pass H., Schiller J., Stone R., Strecher V. \emph{Oncology: An Evidence-Based Approach}. Springer (2006).
 
  Storer B. Design and Analysis of Phase I Clinical Trials. \emph{Biometrics} (1989) 45: 925--937.
