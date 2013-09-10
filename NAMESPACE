@@ -9,6 +9,11 @@ find.x,
 threep3
 )
 
+import(
+ggplot2,
+mvtnorm
+)
+
 S3method(print, bcrm)
 S3method(print,bcrm.sim)
 S3method(print,threep3)

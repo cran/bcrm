@@ -26,7 +26,7 @@ The second and third elements of the list are the parameters a and b, respective
 A vector of size \code{n} is returned from the specified prior distribution.
 }
 \author{
-Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}, drawing on code originally developed by J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
+Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK), drawing on code originally developed by J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 }
 \references{
  Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}

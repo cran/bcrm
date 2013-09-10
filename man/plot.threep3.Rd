@@ -22,7 +22,7 @@ File name where the operating characteristic plot is stored, in a pdf format.
 This function plots the sample size distribution, the experimentation distribution, the recommended dose distribution and the percentage of subjects who experience the toxicity outcome (dose-limiting toxicity) for the standard 3+3 trial.
 }
 \author{
-Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
+Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK) 
 }
 \references{
  Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}

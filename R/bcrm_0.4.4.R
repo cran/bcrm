@@ -1627,7 +1627,6 @@ threep3<-function(truep,start=1,dose=NULL){
 		 # Add them to existing ssize and mtd vectors
 		 ssize.new<-rep(3*(i-1),nrow(stopped.pmat))
 		 ssize<-c(ssize,ssize.new)
-
 		 last.drug<-stopped.pmat[,dc]
 		 previous.drug<-stopped.pmat[,db]
 		 last.tox<-stopped.pmat[,tc]

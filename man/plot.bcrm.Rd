@@ -31,7 +31,7 @@ The estimated 2.5\%, 25\%, 50\%, 75\%, 97.5\% quantiles of the probability of to
 If \code{trajectory = TRUE} then the sequential dose trajectory and observed toxicities are plotted.
 }
 \author{
-Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
+Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK) 
 }
 \references{
  Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. 

@@ -211,7 +211,7 @@ One-parameter models are designed as working models only, and should not be used
 }
 
 \author{
-Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk} (MRC Biostatistics Unit, Cambridge, UK), drawing on code originally developed by J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
+Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK), drawing on code originally developed by J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 }
 
 \seealso{

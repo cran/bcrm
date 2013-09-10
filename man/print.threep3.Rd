@@ -31,7 +31,7 @@ The following operating characteristics are printed for the standard 3+3 design:
 
 
 \author{
-Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
+Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK)
 }
 \references{
  Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}

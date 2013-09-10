@@ -1,3 +1,8 @@
+
+Version 0.4.4 (18th March 2014)
+-------------
+* Maintainer contact details changed
+
 Version 0.4.3 (10th September 2013)
 -------------
 * rjags can now be used instead of R2WinBUGS or BRugs

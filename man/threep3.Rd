@@ -57,9 +57,9 @@ An object of class "threep3" is a list with the following components:
 }
 
 \author{
-Graham Wheeler \email{graham.wheeler@mrc-bsu.cam.ac.uk} and
+Graham Wheeler \email{graham.wheeler@mrc-bsu.cam.ac.uk} (MRC Biostatistics Unit, Cambridge, UK) and
 
-Michael Sweeting \email{michael.sweeting@mrc-bsu.cam.ac.uk}
+Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK)
 }
 \seealso{
 \code{\link{threep3}}
