@@ -15,7 +15,7 @@ getprior(prior.alpha, n)
     \enumerate{
       \item Gamma(a,b), where a=shape, b=scale: mean=a*b, variance=a*b*b
       \item Uniform(a,b), where a=min, b=max
-      \item Lognormal(a,b), where a=mean on the log scale, b=standard deviation on the log scale
+      \item Lognormal(a,b), where a=mean on the log scale, b=variance on the log scale
 	\item Bivariate Lognormal(a,b), where a=mean vector on the log scale, b=Variance-covariance matrix on the log scale. This prior should be used only in conjunction with a two-parameter logistic model.
     } 
 The second and third elements of the list are the parameters a and b, respectively.
@@ -29,7 +29,7 @@ A vector of size \code{n} is returned from the specified prior distribution.
 Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK), drawing on code originally developed by J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 }
 \references{
- Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/article/view/v054i13}
 }
 \seealso{
 \code{\link{bcrm}}, \code{\link{find.x}}

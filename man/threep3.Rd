@@ -20,13 +20,21 @@ A vector of length \code{k} (the number of doses being considered in the trial),
 \details{
 The dose-escalation schema used here relates to that defined by Chang et al. (2006), which incorporates dose de-escalation also. Variations of this design exist in the literature (see Storer 1989, Reiner et al. 1999).
 
-The first cohort of three patients are administered the starting dose (usually the lowest dose). For any cohort in the trial, escalation/de-escalation proceeds as follows:
+The first cohort of three patients are administered the starting dose (usually the lowest dose). The trial then proceeds as follows:
 \itemize{
-	\item If none of the three patients last treated experience a DLT, then dose the next three patients at the next highest dose level;
+  \item If none of the three patients experience a DLT, then dose the next three patients at the next highest dose level;
 	\item If one of the three patients last treated experiences a DLT, then dose the next three patients at the current dose level;
-	\item The trial stops when at least two out of three to six patients experience DLTs at a specific dose level AND six patients have been dosed at the dose level below that given to the last cohort. The MTD is deemed to be the dose level below that given to the last cohort. If less than six patients have been dosed at the dose level below, dose a further three patients at this level.
-	\item If at least two patients in the first dose level experience a DLT the trial is stopped for safety;
+	\item If at least two patients in the first dose level experience a DLT the trial is stopped for safety and no dose is recommended;
 }
+Escalation / de-escalation rules to the next dose level for subsequent cohorts proceed as follows:
+\itemize{
+	\item Escalate: If 0/3 or at most 1/6 DLTs are observed in the current cohort AND the next highest dose has not yet been tested;
+	\item Stay at current dose level: If 1/3 DLTs have been observed at this level. Dose a further three patients at the same level;
+	\item De-Escalate: If at least two out of three to six patients experience DLTs at the current dose level AND fewer than six patients have been dosed at the next lowest level
+}
+	
+If none of the rules above are satisfied then the trial stops. If the current dose level has at most one DLT observed then this is claimed to be the MTD, otherwise the dose level below is deemed to be the MTD. 
+	
 If dose-escalation extends to doses outside of that defined by \code{dose}, the MTD is determined to be the largest dose in \code{dose}.
 
 }
@@ -41,10 +49,14 @@ An object of class "threep3" is a list with the following components:
 \item{exp}{A vector of length \code{k} giving the average trial experimentation proportions at each dose level}
 \item{dlt.no}{A vector with the number of toxicities (DLTs) that occur in each trial}
 \item{truep}{The true probabilities of toxicity at each dose level, specified by the user}
+\item{dose}{The actual doses as supplied in the function arguments}
+\item{n.average}{The average number of patients dosed at each level}
+\item{dlt.average}{The average number of DLTs experienced at each dose level}
+\item{all.designs}{A matrix containing all possible 3+3 designs, with each row representing a different design. Columns labelled "d k" and "tox k" represent the dose level and number of toxicities for the kth cohort, respectively.}
 }
 
 \references{
- Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/article/view/v054i13}
 
  Chang A., Ganz P., Hayes D., Kinsella T., Pass H., Schiller J., Stone R., Strecher V. \emph{Oncology: An Evidence-Based Approach}. Springer (2006).
 

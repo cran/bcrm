@@ -1,4 +1,13 @@
 
+Version 0.4.5 (23rd September 2015)
+-------------
+* The threep3 command also now returns all possible desigin in an object labelled `all.designs' for the user to interrogate further if required
+* The threep3 command now also returns the average number of patients per dose level and the average number of DLTs per dose level
+* Designs that use toxicity intervals now return the posterior probability of lying in each interval in the print.bcrm output
+* seed argument added to allow reproducibility of results
+* The help files for bcrm and getprior incorrectly specified the parameter `b' as the standard deviation of the lognormal prior. It is actually the variance. Many thanks to Elaidi Reza for spotting this error
+* DESCRIPTION file details changed
+
 Version 0.4.4 (18th March 2014)
 -------------
 * Maintainer contact details changed

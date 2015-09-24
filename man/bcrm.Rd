@@ -2,7 +2,7 @@
 \alias{bcrm}
 
 \title{
-Bayesian continual reassessment method (CRM) designs for Phase I dose escalation trials.
+Bayesian Continual Reassessment Method for Phase I Dose-Escalation Trials
 }
 \description{
 Implements a wide variety of Bayesian CRM designs, including 1-parameter, 2-parameter and Escalation With Overdose Control (EWOC) designs. The program can run interactively, allowing the user to enter outcomes after each cohort has been recruited, or via simulation to assess operating characteristics.
@@ -14,8 +14,8 @@ bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL),
      sdose.calculate = "mean", pointest = "plugin", tox.cutpoints = NULL,
      loss = NULL, start = NULL, simulate = FALSE, nsims = 1, truep = NULL, 
      threep3 = FALSE, method = "exact", burnin.itr = 2000, production.itr = 2000,
-     bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, file = NULL, 
-     N, tox, notox)
+     bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, seed = NULL,
+	file = NULL, N, tox, notox)
 }
 
 \arguments{
@@ -61,7 +61,7 @@ A list of length 3 containing the distributional information for the prior. The 
     \enumerate{
       \item Gamma(a,b), where a=shape, b=scale: mean=a*b, variance=a*b*b
       \item Uniform(a,b), where a=min, b=max
-      \item Lognormal(a,b), where a=mean on the log scale, b=standard deviation on the log scale
+      \item Lognormal(a,b), where a=mean on the log scale, b=variance on the log scale
 	\item Bivariate Lognormal(a,b), where a=mean vector on the log scale, b=Variance-covariance matrix on the log scale. This prior should be used only in conjunction with a two-parameter logistic model.
     } 
 The second and third elements of the list are the parameters a and b, respectively.
@@ -116,6 +116,9 @@ Directory that contains the WinBUGS executable if \code{method="R2WinBUGS"}. Def
 }
   \item{plot}{
 Should the dose-response curve be plotted after each cohort has been entered? Defaults to FALSE.
+}
+  \item{seed}{
+Integer defining the state of the random number generator to allow reproducibility of results. The default is to not specify a seed.
 }
   \item{file}{
 File name where the dose-response plots are stored, in a pdf format. The program will ammend the current sample size to the end of the file name.
@@ -187,7 +190,7 @@ An object of class "bcrm.sim" is a list of length \code{nsims}. Each component i
 
 }
 \references{
- Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/v54/i13/}
+ Sweeting M., Mander A., Sabin T. \pkg{bcrm}: Bayesian Continual Reassessment Method Designs for Phase I Dose-Finding Trials. \emph{Journal of Statistical Software} (2013) 54: 1--26. \url{http://www.jstatsoft.org/article/view/v054i13}
 
  O'Quigley J., Pepe M., Fisher L. Continual reassessment method: a practical design for phase I clinical trials in cancer. \emph{Biometrics} (1990) 46: 33--48.
 
