@@ -11,10 +11,10 @@ threep3
 
 import(
 ggplot2,
-mvtnorm,
-grid
+mvtnorm
 )
 
+importFrom("grid","grid.newpage","pushViewport","viewport","grid.layout")
 importFrom("grDevices", "dev.off", "pdf")
 importFrom("graphics", "hist", "lines", "par", "plot")
 importFrom("stats", "dbinom", "dgamma", "dlnorm", "dunif", "integrate",

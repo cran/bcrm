@@ -11,8 +11,8 @@ Implements a wide variety of Bayesian CRM designs. The program can run interacti
 \tabular{ll}{
 Package: \tab bcrm\cr
 Type: \tab Package\cr
-Version: \tab 0.4.5\cr
-Date: \tab 2015-09-23\cr
+Version: \tab 0.4.6\cr
+Date: \tab 2015-11-20\cr
 License: \tab GPL (>= 2) \cr
 LazyLoad: \tab yes\cr
 }

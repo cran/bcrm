@@ -15,7 +15,7 @@ bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL),
      loss = NULL, start = NULL, simulate = FALSE, nsims = 1, truep = NULL, 
      threep3 = FALSE, method = "exact", burnin.itr = 2000, production.itr = 2000,
      bugs.directory = "c:/Program Files/WinBUGS14/", plot = FALSE, seed = NULL,
-	file = NULL, N, tox, notox)
+	quietly = FALSE, file = NULL, N, tox, notox)
 }
 
 \arguments{
@@ -119,6 +119,10 @@ Should the dose-response curve be plotted after each cohort has been entered? De
 }
   \item{seed}{
 Integer defining the state of the random number generator to allow reproducibility of results. The default is to not specify a seed.
+}
+  \item{quietly}{
+  Should the simulation number output be suppressed when running bcrm?
+  Defaults to FALSE.
 }
   \item{file}{
 File name where the dose-response plots are stored, in a pdf format. The program will ammend the current sample size to the end of the file name.

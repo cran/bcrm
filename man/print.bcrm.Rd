@@ -36,7 +36,11 @@ If a simulation study is conducted, then the following operating characteristics
 If \code{trajectories = TRUE} then the dose level administered and outcome observed are returned as matrices for every patient (column) in every simulation (row). 
 If \code{threep3 = TRUE} then the operating characteristics of the standard 3+3 design are displayed alongside those of the \code{bcrm} design (see \code{\link{threep3}} for more details).
 }
-
+\value{
+The following two components are returned from \code{print.bcrm.sim}:
+\item{exp}{A matrix with number of rows equal to the number of doses, and number of columns equal to the number of simulations. Gives the experimentation proportions for each dose within each simulation.}
+\item{rec}{A vector with length equal to the number of simulations, giving the recommended MTD for each simulation.}
+}
 
 \author{
 Michael Sweeting \email{mjs212@medschl.cam.ac.uk} (University of Cambridge, UK)
