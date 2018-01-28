@@ -1,9 +1,9 @@
 ## Bayesian CRM - extending original code of J. Jack Lee and Nan Chen, Department of Biostatistics, the University of Texas M. D. Anderson Cancer Center
 ## Now using exact inference, rjags, R2WinBUGS or BRugs 
 
-### MJS 20/11/15
+### MJS 03/07/17
 
-if(getRversion() >= "2.15.1") globalVariables(c("N1","pow","d","alpha","p2","logit<-","log.alpha","inverse","patient","toxicity","est","target.tox","q2.5","q97.5","q50","q25","q75","ndose","tox.cutpoints","xmin","ymin","xmax","ymax","Loss","Outcome","traj","Statistic","..density..","Toxicity","weight","Method","..count..","rec","obs","count","n"))
+if(getRversion() >= "2.15.1") globalVariables(c("N1","pow","d","alpha","p2","logit<-","log.alpha","inverse","patient","toxicity","est","target.tox","q2.5","q97.5","q50","q25","q75","ndose","tox.cutpoints","xmin","ymin","xmax","ymax","Loss","Outcome","traj","Statistic","..density..","Toxicity","weight","Method","..count..","rec","obs","obs.rounded","count","n"))
 
 # ----------------------------------------------------------------------
 # 	bcrm. Conduct a Bayesian CRM trial simulating outcomes from a true model
@@ -12,6 +12,7 @@ if(getRversion() >= "2.15.1") globalVariables(c("N1","pow","d","alpha","p2","log
 #			nmtd = Maximum number to be treated at final MTD estimate			
 #			precision = Lower and Upper risks of toxicity that must contain the 95% posterior interval (2.5%ile and 97.5%ile) of the recommended dose in order to stop the trial
 #			nmin = Minimum sample size required in the trial
+#     safety = Posterior probability that DLT rate of all doses is higher than the TTL - then trial is stopped for safety
 #	data		--> A named data frame giving information about dose and toxicity from previously recruited patients. Contains the following variables
 #			"patient" - recruited patient number (1,...,n)
 #			"dose" - dose level 
@@ -57,7 +58,7 @@ if(getRversion() >= "2.15.1") globalVariables(c("N1","pow","d","alpha","p2","log
 #     tox         --> number of successes (toxicities) (Deprecated)
 #     notox       --> number of failed patients (no-toxicities) (Deprecated)
 # ----------------------------------------------------------------------
-bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.alpha,cohort=3,target.tox,constrain=TRUE,sdose.calculate="mean",pointest="plugin",tox.cutpoints=NULL,loss=NULL,
+bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL,safety=NULL),data=NULL,p.tox0=NULL,sdose=NULL,dose=NULL,ff,prior.alpha,cohort=3,target.tox,constrain=TRUE,sdose.calculate="mean",pointest="plugin",tox.cutpoints=NULL,loss=NULL,
 	start=NULL,simulate=FALSE,nsims=1,truep=NULL,threep3=FALSE,
 	method="exact",burnin.itr=2000,production.itr=2000,bugs.directory="c:/Program Files/WinBUGS14/",plot=FALSE,seed=NULL, quietly=FALSE, file=NULL,N,tox,notox){
 
@@ -72,7 +73,10 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 	}
 	if(!(length(stop$precision) %in% c(0,2))) stop("stop$precision must be a vector of length two")
 	if(!is.null(stop$nmax) & !is.null(stop$nmin)) {if(stop$nmin>stop$nmax) stop("stop$nmin must be less than stop$nmax")}
-	if(missing(p.tox0) & missing(sdose)) stop("Either p.tox0 or sdose must be specified")
+  if(!is.null(stop$safety)){
+    if(stop$safety<=0 | stop$safety>=1) stop("stop$safety must be a probability between 0 and 1")
+  }
+  if(missing(p.tox0) & missing(sdose)) stop("Either p.tox0 or sdose must be specified")
 	if(!missing(p.tox0) & !missing(sdose)) stop("Only one of p.tox0 and sdose must be specified")
 	if(sdose.calculate!="mean" & sdose.calculate!="median") stop("sdose.calculate must be either `mean' or `median'")
 	if((is.character(pointest) & pointest!="mean" & pointest!="plugin") | is.numeric(pointest) & (pointest<0 | pointest>1)) stop("pointest must be either `plugin', `mean' or an EWOC feasibility quantile between 0 and 1")
@@ -129,6 +133,9 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 		start<-as.numeric(data$dose[1])
 	}
 
+	## Cannot calculate quantiles if method=="exact" so stop$precision and stop$safety cannot be used
+	if(method=="exact" & (!is.null(stop$precision) | !is.null(stop$safety))){ stop("exact method cannot be used with stop$precision or stop$safety, please use MCMC instead")}
+	
 	## Allowing access to fast exact computation if method="exact" & simulate=TRUE & stopping rules do not depend on posterior quantiles
 	if(method=="exact" & simulate & is.null(stop$precision)){ method<-"exact.sim" }
 	## If method=="exact" and a two-parameter model is fitted, only relevant escalation posterior quantities are calculated (apart from trial end)
@@ -183,16 +190,24 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 		found<-FALSE
 		match<-1
 		if(sim==1){
+		  if(is.null(stop$safety)){
+		    quantiles<-c(0.025,0.25,0.50,0.75,0.975)
+		  } else {
+		    quantiles<-sort(unique(c(0.025,0.25,0.50,0.75,0.975,1-stop$safety)))
+		  }
 			prior.ndose<-switch(method
-				,rjags=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
-				,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
-				,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
+				,rjags=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss,quantiles)
+				,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss,quantiles)
+				,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss,quantiles)
 				,exact=nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
 				,exact.sim=nextdose.exact.sim(alpha,sdose,ff,target.tox,constrain,pointest,current)
 				)
 		} 	
 		ndose<-prior.ndose
 
+		stopped<-stop.check(stop,ncurrent,ndose,new.tox,new.notox,simulate)
+		ndose<-stopped$ndose ## update ndose incase no doses are deemed safe
+		
 		if(!simulate){
 			results<-list(dose=dose,sdose=sdose,tox=new.tox,notox=new.notox,ndose=list(ndose),constrain=constrain,start=start,target.tox=target.tox,ff=ff,method=method,pointest=pointest,tox.cutpoints=tox.cutpoints,loss=loss,prior.alpha=prior.alpha,data=data)
 			class(results)<-"bcrm"
@@ -202,8 +217,8 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 		if(plot){
 			plot(results,file)
 		}
-		stopped<-stop.check(stop,ncurrent,ndose,new.tox,new.notox,simulate)
-		while(!stopped){
+		
+		while(!stopped$stop){
 			current<-ndose[[1]]
 			ncurrent<-ncurrent+cohort
 			if(!simulate){
@@ -252,32 +267,40 @@ bcrm<-function(stop=list(nmax=NULL,nmtd=NULL,precision=NULL,nmin=NULL),data=NULL
 					,exact.sim=Posterior.exact.sim(new.tox,new.notox,sdose,ff,prior.alpha,pointest)
 					)
 				ndose<-switch(method
-					,rjags=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
-					,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
-					,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss)
+					,rjags=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss,quantiles)
+					,BRugs=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss,quantiles)
+					,R2WinBUGS=nextdose(alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss,quantiles)
 					,exact=nextdose.exact(alpha,sdose,ff,target.tox,constrain,pointest,current)
 					,exact.sim=nextdose.exact.sim(alpha,sdose,ff,target.tox,constrain,pointest,current)
 					)
 			}
-			if(!simulate){
-				results$tox<-new.tox
-				results$notox<-new.notox
-				results$ndose[[length(results$ndose)+1]]<-ndose
-				results$data<-newdata
-			} else{
-				subset.results[[sim-sub.start]]$tox<-new.tox
-				subset.results[[sim-sub.start]]$notox<-new.notox
-				subset.results[[sim-sub.start]]$ndose[[length(subset.results[[sim-sub.start]]$ndose)+1]]<-ndose
-				subset.results[[sim-sub.start]]$data<-newdata			}
-			if(plot){
-				plot(results,file)
-			}
+			
 			stopped<-stop.check(stop,ncurrent,ndose,new.tox,new.notox,simulate)
+			ndose<-stopped$ndose ## update ndose in case no doses are deemed safe
+			
+			
 		}
+		
+		## Once stopped run following code
 		if(simulate & !quietly){
 			cat(sim,"\n")
 		}
-	sim<-sim+1
+	
+		if(!simulate){
+		  results$tox<-new.tox
+		  results$notox<-new.notox
+		  results$ndose[[length(results$ndose)+1]]<-ndose
+		  results$data<-newdata
+		} else{
+		  subset.results[[sim-sub.start]]$tox<-new.tox
+		  subset.results[[sim-sub.start]]$notox<-new.notox
+		  subset.results[[sim-sub.start]]$ndose[[length(subset.results[[sim-sub.start]]$ndose)+1]]<-ndose
+		  subset.results[[sim-sub.start]]$data<-newdata			}
+		if(plot){
+		  plot(results,file)
+		}
+		
+		sim<-sim+1
 	}
 	if(simulate){
 		results<-c(results,subset.results)
@@ -896,16 +919,17 @@ Posterior.exact.sim<-function(tox,notox,sdose,ff,prior.alpha,pointest){
 #	constrain	  --> TRUE or FALSE
 #	pointest	  --> "plugin", "mean" or a quantile
 #	current	  --> current dose level (of last treated cohort) - 0 if this is first cohort
+# quantiles --> quantiles of the posterior distribution to calculate for each dose
 #
 # ----------------------------------------------------------------------
-nextdose<-function(samples.alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss){
+nextdose<-function(samples.alpha,sdose,ff,target.tox,constrain,pointest,current,tox.cutpoints,loss,quantiles){
 	f<-which.f(ff)
 	k<-length(sdose)
 	samples.sdose<-sapply(sdose,function(x){f(x,samples.alpha)})
 	mean<-apply(samples.sdose,2,mean)
 	median<-apply(samples.sdose,2,median)
 	sd<-apply(samples.sdose,2,sd)
-	quantiles<-apply(samples.sdose,2,quantile,c(0.025,0.25,0.50,0.75,0.975))
+	quantiles<-apply(samples.sdose,2,quantile,quantiles)
 
 	if(!is.null(loss)){
 		probs<-sapply(1:k,function(i){hist(samples.sdose[,i], c(0,tox.cutpoints,1), plot = FALSE)$counts/dim(samples.sdose)[1]})
@@ -1032,7 +1056,7 @@ find.x <- function( ff, ptox, alpha ) {
 }
 
 # ----------------------------------------------------------------------
-#     Check whether we have reached the stopping criteria
+#     Check whether we have reached any stopping criteria
 #
 #     stop         --> list of stopping criteria (nmax, nmtd, precision, nmin)
 #     ncurrent     --> current sample size
@@ -1042,7 +1066,7 @@ find.x <- function( ff, ptox, alpha ) {
 #     simulate     --> Is this a simulation study?
 # ----------------------------------------------------------------------
 stop.check<-function(stop,ncurrent,ndose,new.tox,new.notox,simulate){
-	answer1<-answer2<-answer3<-FALSE
+	answer1<-answer2<-answer3<-answer5<-FALSE
 	answer4<-TRUE
 	if(!is.null(stop$nmin)){
 		answer4<-(ncurrent>=stop$nmin)
@@ -1059,8 +1083,19 @@ stop.check<-function(stop,ncurrent,ndose,new.tox,new.notox,simulate){
 		answer3<- stop$precision[1] <= ndose$quantiles["2.5%",ndose$ndose] & ndose$quantiles["97.5%",ndose$ndose]<= stop$precision[2]
 		if(answer3 & answer4 & !simulate) cat("\n Stopping: Reached required precision for MTD estimate\n")
 	}
+	if(!is.null(stop$safety)){
+	  ## If prob DLT of first dose being greater than TTL is > stop$safety then stop 
+	  answer5<-ndose$quantiles[paste0(100*(1-stop$safety),"%"),1]>=target.tox
+	  if(answer5 & answer4) {
+	    if(!simulate){
+  	    cat("\n Stopping: Safety criteria reached. No doses deemed safe\n")
+	    }
+  	  ndose$ndose<-0
+	  }
+	}
 
-	(answer1 | answer2 | answer3) & answer4 
+	stop<-(answer1 | answer2 | answer3 | answer5) & answer4 
+	return(list(stop=stop,ndose=ndose))
 }
 
 #-----------------------------------------------------------------------
@@ -1181,18 +1216,12 @@ plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,threep3=FALSE,...){
 		lt<-c("Median" = 1,"Lower Quartile" = 2,"Upper Quartile" = 2, "Minimum" = 4,"Maximum"=4)
 		cols<- c("No" = "black","Yes" = "red")
 		if(length(x)>1){
-			#a<-ggplot()+geom_point(aes(x=patient,y=traj,col=Toxicity),data=df,position="jitter",alpha=0.2)+
-			#	scale_colour_manual(values=cols)+
-			#	xlab("Patient")+ylab("Dose Level")+ggtitle("Experimentation and Toxicities")
 			b<-ggplot()+geom_step(aes(x=patient,y=traj,group=Statistic,linetype=Statistic),size=1.2,colour="blue",data=traj.df)+
 				scale_linetype_manual(values=lt)+
 				xlab("Patient")+ylab("Dose Level")
 			if(!is.null(file))
 				pdf(paste(file,".pdf",sep=""),...)
-			#grid.newpage()
-			#pushViewport(viewport(layout=grid.layout(2,1)))
-			#vplayout<-function(x,y)	viewport(layout.pos.row=x,layout.pos.col=y)
-			#print(a,vp=vplayout(1,1))	
+
 			print(b)
 			if(!is.null(file))
 				dev.off()
@@ -1234,7 +1263,7 @@ plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,threep3=FALSE,...){
 		}
 
 		# recommendation
-		rec<-dose[sapply(x,function(i){i$ndose[[length(i$ndose)]]$ndose})]
+		rec<-	sapply(x,function(i){ifelse(i$ndose[[length(i$ndose)]]$ndose==0,0,dose[i$ndose[[length(i$ndose)]]$ndose])})
 		if(!threep3){
 			df.rec<-data.frame(rec=factor(rec))
 			c<-ggplot()+geom_bar(aes(x=rec,y=100*..count../sum(count)),data=df.rec)+xlab(dose.label)+ylab("Percent")+ggtitle("Recommendation")
@@ -1244,18 +1273,35 @@ plot.bcrm.sim<-function(x,trajectories=FALSE,file=NULL,threep3=FALSE,...){
 			c<-ggplot()+geom_bar(aes(x=rec,y=100*..count..,weight=weight,fill=Method),data=df.rec.threep3,position="dodge")+xlab(dose.label)+ylab("Percent")+ggtitle("Recommendation")
 		}
 		
-          # observed DLTs
+		# observed DLTs
 		obs<-sapply(x,function(i){100*sum(i$tox)/sum(i$tox+i$notox)})
 		if(!threep3){
 			bw<-max(diff(range(obs))/30,1)
-			df.obs<-data.frame(obs=obs,bw=bw)
-			d<-ggplot()+geom_histogram(aes(bw=bw,x=obs,y=100*..density..*bw),data=df.obs,binwidth=bw)+xlab("Percentage of subjects with DLTs")+ylab("Percent")+ggtitle("DLTs")
+			# old version 0.4.6
+			#df.obs<-data.frame(obs=obs)
+			#d<-ggplot()+geom_histogram(aes(x=obs,y=100*..count../sum(..count..)),data=df.obs,binwidth=bw)+
+			#  xlab("Percentage of subjects with DLTs")+ylab("Percent of trials")+ggtitle("DLTs")
+			# new version >= 0.4.7 
+			df.obs<-data.frame(obs=bw*round(obs/bw))
+			d<-ggplot()+geom_bar(aes(x=obs,y=100*..count../sum(..count..)),data=df.obs)+
+					  xlab("Percentage of subjects with DLTs")+ylab("Percent of trials")+ggtitle("DLTs")
 		} else {
 			obs.threep3<-100*x[[1]]$threep3$dlt.no/x[[1]]$threep3$ssize
-			bw<-diff(range(c(obs,obs.threep3)))/30
-			df.obs.threep3<-data.frame(bw=bw,obs=c(obs,obs.threep3),weight=c(rep(1/length(obs),length(obs)),x[[1]]$threep$prob),Method=rep(c("CRM","3+3"),c(length(obs),length(obs.threep3))))
-			df.obs.threep3<-subset(df.obs.threep3,df.obs.threep3$weight>0)
-			d<-ggplot()+geom_histogram(aes(bw=bw,x=obs,y=100*..density..*bw,weight=weight,fill=Method),data=df.obs.threep3,binwidth=bw,position="dodge")+xlab("Percentage of subjects with DLTs")+ylab("Percent")+ggtitle("DLTs")
+			range<-range(c(obs,obs.threep3))
+			bw<-diff(range)/30
+			
+			df.obs.threep3<-data.frame(obs=c(obs,obs.threep3),weight=c(rep(1/length(obs),length(obs)),x[[1]]$threep$prob),Method=rep(c("CRM","3+3"),c(length(obs),length(obs.threep3))))
+		  df.obs.threep3<-subset(df.obs.threep3,df.obs.threep3$weight>0)
+			
+		  df.obs.threep3$obs.rounded<-bw*round(c(obs,obs.threep3)/bw)
+		  
+		  ## Old version 0.4.6
+		  #d<-ggplot()+geom_histogram(aes(x=obs,y=100*..count../sum(..count..),weight=weight,fill=Method),data=df.obs.threep3,binwidth=bw,position="dodge")+
+			#  xlab("Percentage of subjects with DLTs")+ylab("Percent of trials")+ggtitle("DLTs")
+			
+			d<-ggplot()+geom_bar(aes(x=obs.rounded,y=100*..count..,weight=weight,fill=Method),data=df.obs.threep3,position="dodge")+
+			  xlab("Percentage of subjects with DLTs")+ylab("Percent of trials")+ggtitle("DLTs")
+			
 		}
 		if(!is.null(file))
 			pdf(paste(file,".pdf",sep=""),...)
@@ -1287,19 +1333,22 @@ plot.threep3<-function(x,file=NULL,...){
 	exp.threep3<-rep(dose,10000*x$exp)
 	df.exp.threep3<-data.frame(exp=as.factor(exp.threep3))
 	b<-ggplot()+geom_bar(aes(x=exp,y=..count../100),data=df.exp.threep3)+xlab(dose.label)+ylab("Percent")+ggtitle("Experimentation")
-
+	
 	# recommendation
 	rec.threep3<-dose[x$mtd]
 	df.rec.threep3<-data.frame(rec=factor(rec.threep3),weight=x$prob[x$mtd!=0])
 	c<-ggplot()+geom_bar(aes(x=rec,y=100*..count..,weight=weight),data=df.rec.threep3)+xlab(dose.label)+ylab("Percent")+ggtitle("Recommendation")
 
-     # observed DLTs
+	# observed DLTs
 	obs.threep3<-100*x$dlt.no/x$ssize
 	bw<-max(diff(range(obs.threep3[x$prob>0]))/30,1)
-	df.obs.threep3<-data.frame(obs=obs.threep3,weight=x$prob,bw=bw)
+	df.obs.threep3<-data.frame(obs=obs.threep3,weight=x$prob,binwidth=bw)
 	df.obs.threep3<-subset(df.obs.threep3,df.obs.threep3$weight>0)
-	d<-ggplot()+geom_histogram(aes(bw=bw,x=obs,y=100*..density..*bw,weight=weight),data=df.obs.threep3,binwidth=bw)+xlab("Percentage of subjects with DLTs")+ylab("Percent")+ggtitle("DLTs")
-
+	df.obs.threep3$obs.rounded<-bw*round(obs.threep3/bw)
+	d<-ggplot()+geom_bar(aes(x=obs.rounded,y=100*..count..,weight=weight),data=df.obs.threep3)+
+	  xlab("Percentage of subjects with DLTs")+ylab("Percent of trials")+ggtitle("DLTs")
+	
+	
 	if(!is.null(file))
 		pdf(paste(file,".pdf",sep=""),...)
 	grid.newpage()
@@ -1319,12 +1368,15 @@ plot.threep3<-function(x,file=NULL,...){
 # -----------------------------------
 print.bcrm<-function(x,...){
 	cat(" Estimation method: ",x$method,"\n")
-	ff.txt<-switch(x$ff
+	
+  cat("\n Target toxicity level: ",x$target.tox, "\n")
+  
+  ff.txt<-switch(x$ff
 		,ht="Hyperbolic Tangent"
 		,logit1="1-parameter logistic"
 		,power="1-parameter power"
 		,logit2="Two-parameter logistic")
-
+	
 	cat("\n Model: ",ff.txt,"\n")
 
 	pa.txt<-switch(x$prior.alpha[[1]]
@@ -1411,7 +1463,11 @@ print.bcrm<-function(x,...){
 	if(is.null(x$dose)){
 		cat("\n Next recommended dose level: ",x$ndose[[length(x$ndose)]]$ndose,"\n")
 	} else {
-		cat("\n Next recommended dose: ",x$dose[x$ndose[[length(x$ndose)]]$ndose],"\n")
+	    if(x$ndose[[length(x$ndose)]]$ndose!=0){
+    		cat("\n Next recommended dose: ",x$dose[x$ndose[[length(x$ndose)]]$ndose],"\n")
+	    } else {
+	      cat("\n No recommended dose levels are safe","\n")
+	    }
 	}
 }
 
@@ -1443,13 +1499,13 @@ print.bcrm.sim<-function(x,tox.cutpoints=NULL,trajectories=FALSE,threep3=FALSE,.
 			colnames(tab0)<-c("Mean","Minimum","Maximum")
 		}
 		exp<-sapply(x,function(i){(i$tox+i$notox)/sum(i$tox+i$notox)})
-		exp.tab<-apply(exp,1,mean)
+		exp.tab<-c(NA,apply(exp,1,mean))
 		rec<-sapply(x,function(i){i$ndose[[length(i$ndose)]]$ndose})
-		rec.tab<-prop.table(table(factor(rec,levels=1:length(x[[1]]$tox))))
+		rec.tab<-prop.table(table(factor(rec,levels=0:length(x[[1]]$tox))))
 		tab<-signif(rbind(exp.tab,rec.tab),3)
 		rownames(tab)<-c("Experimentation proportion","Recommendation proportion")
 		dose<-if(is.null(x[[1]]$dose)){1:length(x[[1]]$truep)} else {x[[1]]$dose}
-		colnames(tab)<-dose
+		colnames(tab)<-c("No dose",dose)
 		names(dimnames(tab))<-c("","Doses")
 		if(is.null(tox.cutpoints)){
 			tox.cutpoints<-seq(0,1,by=0.2)
@@ -1457,7 +1513,8 @@ print.bcrm.sim<-function(x,tox.cutpoints=NULL,trajectories=FALSE,threep3=FALSE,.
 			tox.cutpoints<-unique(c(0,tox.cutpoints,1))
 		}
 		exp.tox<-prop.table(table(cut(unlist(sapply(x,function(i){rep(i$truep,(i$tox+i$notox))},simplify=FALSE)),tox.cutpoints,include.lowest=T)))
-		rec.tox<-prop.table(table(cut(sapply(x,function(i){i$truep[i$ndose[[length(i$ndose)]]$ndose]}),tox.cutpoints,include.lowest=T)))
+		## rec.tox updated on 04/07/17 so that trials that do not recommend a dose are classified as recommending a dose with 0% DLT rate
+		rec.tox<-prop.table(table(cut(sapply(x,function(i){ifelse(i$ndose[[length(i$ndose)]]$ndose==0,0,i$truep[i$ndose[[length(i$ndose)]]$ndose])}),tox.cutpoints,include.lowest=T)))
 		tab2<-signif(rbind(exp.tox,rec.tox),3)
 		rownames(tab2)<-c("Experimentation proportion","Recommendation proportion")
 		names(dimnames(tab2))<-c("","Probability of DLT")
@@ -1595,6 +1652,8 @@ threep3<-function(truep,start=1,dose=NULL){
   all.designs<-stopped.pmat
 	prob<-ssize<-mtd<-dlt.no<-NULL
 	exp<-0
+	
+	n.average<-dlt.average<-0
 
 	if(start==1){
 		# Probabilties of stopped 3+3 trials occuring

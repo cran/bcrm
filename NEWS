@@ -1,3 +1,11 @@
+Version 0.4.7 (28th January 2018)
+-------------
+* threep3 now works with any starting dose, not just the first. Thanks to Bernard North and Christina Yassouridis for spotting this bug.
+* A safety stopping rule has now been implemented with stop(list(safety=p)) following the approach of Zohar and Chevret, Statistics in Medicine (2001)
+* Updated bcrm help page. p.tox0 are the skeleton probabilities, not the standardised doses. Thanks to Eliezer Weill for spotting this.
+* Using geom_bar to obtain percentage of subjects with DLTs since weight option removed from geom_hist
+* threep3 example in manual corrected with named arguments
+
 
 Version 0.4.6 (20th November 2015)
 -------------

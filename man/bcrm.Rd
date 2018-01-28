@@ -8,7 +8,7 @@ Bayesian Continual Reassessment Method for Phase I Dose-Escalation Trials
 Implements a wide variety of Bayesian CRM designs, including 1-parameter, 2-parameter and Escalation With Overdose Control (EWOC) designs. The program can run interactively, allowing the user to enter outcomes after each cohort has been recruited, or via simulation to assess operating characteristics.
 }
 \usage{
-bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL), 
+bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL, safety = NULL), 
      data = NULL, p.tox0 = NULL, sdose = NULL, dose = NULL, 
      ff, prior.alpha, cohort = 3, target.tox, constrain = TRUE,
      sdose.calculate = "mean", pointest = "plugin", tox.cutpoints = NULL,
@@ -23,6 +23,7 @@ bcrm(stop = list(nmax = NULL, nmtd = NULL, precision = NULL, nmin = NULL),
 A list of stopping rules for the trial. One or more of the following options should be specified 
 \describe{
     \item{\code{nmax}}{ The maximum sample size of the trial}
+    \item{\code{safety}}{Stops the trial if the posterior probability of the lowest dose being above the target toxicity level is greater than this number}
      \item{\code{nmtd}}{ The maximum number to be treated at final maximum tolerated dose (MTD) estimate, \emph{i.e.} if the next recommended dose has already been administered to \code{nmtd} patients then the trial will stop}
      \item{\code{precision}}{ A vector of the lower and upper percentage points that the MTD 95\% credible intervals for the risk of toxicity should lie within}   
 	\item{\code{nmin}}{ The minimum sample size of the trial. To be used in conjunction with \code{nmtd} or \code{precision}}
@@ -39,7 +40,7 @@ A named data frame giving information about dose and toxicity from previously re
    } 
 }
   \item{p.tox0}{
-A vector of length \code{k} listing the prior probabilities of experiencing the outcome at each dose level \code{1,...k}. The standardised dose levels (CRM "skeleton") are formed from these probabilities using the inverse of the functional form, with a plug-in estimate for the prior mean or median of alpha, as specified in \code{ff}, \code{prior.alpha} and \code{sdose.calculate}. Alternatively standardised dose levels can be given directly using \code{sdose}.
+A vector of length \code{k} listing the prior probabilities of experiencing the outcome at each dose level \code{1,...k} (CRM "skeleton"). The standardised dose levels are formed from these probabilities using the inverse of the functional form, with a plug-in estimate for the prior mean or median of alpha, as specified in \code{ff}, \code{prior.alpha} and \code{sdose.calculate}. Alternatively standardised dose levels can be given directly using \code{sdose}.
 }
   \item{sdose}{
 A vector of length \code{k} listing the standardised doses to be used in the CRM model. Only required if \code{p.tox0} is missing.
@@ -79,7 +80,7 @@ Should a dose-skipping constraint be placed on the escalation procedure, as impo
 What plug-in estimate of the prior alpha should be used to calculate the standardised doses? Options are \code{"mean"} (default) or \code{"median"}. Only required if \code{sdose} is missing.
 }
   \item{pointest}{
-Which summary estimate of the posterior distribution should be used to choose the next dose. Options are \code{"plugin"} (default) where the posterior mean of the model parameter(s) is plugged into the function form to obtain estimates of toxicity, or \code{"mean"} where the posterior mean probabilities of toxicity are directly used. Alternatively, a number between 0 and 1 can be specified representing the quantile of the maximum tolerated dose (MTD) posterior distribution (e.g. 0.5 specifies the posteior median). This produces an Escalation With Overdose Control (EWOC) design if the quantile is less than 0.5 (see details). Currently, EWOC designs must be fit using MCMC methods.
+Which summary estimate of the posterior distribution should be used to choose the next dose. Options are \code{"plugin"} (default) where the posterior mean of the model parameter(s) is plugged into the function form to obtain estimates of toxicity, or \code{"mean"} where the posterior mean probabilities of toxicity are directly used. Alternatively, a number between 0 and 1 can be specified representing the quantile of the maximum tolerated dose (MTD) posterior distribution (e.g. 0.5 specifies the posterior median). This produces an Escalation With Overdose Control (EWOC) design if the quantile is less than 0.5 (see details). Currently, EWOC designs must be fit using MCMC methods.
 }
   \item{tox.cutpoints}{
 A vector of cutpoints for toxicity intervals if these are to be used to choose next dose. Defaults to NULL. For example Underdosing [0,0.2], Target dosing (0.2, 0.35], Excessive toxicity (0.35, 0.60], Unacceptable toxicity (0.60, 1.00] set \code{tox.cutpoints=c(0.2,0.35,0.60)}. 
@@ -118,14 +119,14 @@ Directory that contains the WinBUGS executable if \code{method="R2WinBUGS"}. Def
 Should the dose-response curve be plotted after each cohort has been entered? Defaults to FALSE.
 }
   \item{seed}{
-Integer defining the state of the random number generator to allow reproducibility of results. The default is to not specify a seed.
+Integer defining the state of the random number generator to allow reproducible results. The default is to not specify a seed.
 }
   \item{quietly}{
   Should the simulation number output be suppressed when running bcrm?
   Defaults to FALSE.
 }
   \item{file}{
-File name where the dose-response plots are stored, in a pdf format. The program will ammend the current sample size to the end of the file name.
+File name where the dose-response plots are stored, in a pdf format. The program will amend the current sample size to the end of the file name.
 }
   \item{N}{
 Final sample size (deprecated). To be replaced with \code{stop} in future versions.
@@ -162,7 +163,11 @@ The prior is set using \code{prior.alpha}. For example \code{prior.alpha=list(1,
 
 To specify a fixed maximum sample size of size \code{m} use 
 \code{stop=list(nmax=m)}. Alternatively, the trial can stop after \code{m2} patients have been treated at the current MTD estimate, by setting 
-\code{stop=list(nmtd=m2)}. To stop the trial when the MTD estimate is within a certain level of precision, use \code{stop=list(precision=c(l,u))}, where \code{l} and \code{u} are the lower and upper percentage points that the MTD 95\% credible intervals for the risk of toxicity should lie within. Finally, to prevent the trial stopping too early using these rules, the argument \code{stop=list(nmin=m3)} can be used to ensure the sample size is greater than or equal to \code{m3}. Stopping rules can be used on their own or in combination.
+\code{stop=list(nmtd=m2)}. 
+
+To implement a safety constraint as specified in Zohar and Chevret (2001) specify \code{stop=list(safety=p)}, where the trial is stopped if the posterior probability that the lowest dose is greater than the target toxicity probability is greater than \code{p}. 
+
+To stop the trial when the MTD estimate is within a certain level of precision, use \code{stop=list(precision=c(l,u))}, where \code{l} and \code{u} are the lower and upper percentage points that the MTD 95\% credible intervals for the risk of toxicity should lie within. Finally, to prevent the trial stopping too early using these rules, the argument \code{stop=list(nmin=m3)} can be used to ensure the sample size is greater than or equal to \code{m3}. Stopping rules can be used on their own or in combination.
 
 The trial can be run interactively using \code{simulate=FALSE}, where the user enters the outcomes for each new cohort,  or as a simulation study when \code{simulate=TRUE}.
 
@@ -172,7 +177,7 @@ The default calculations use exact methods (\code{method="exact"}) to calculate 
 A simulated \code{bcrm} design can be compared with the standard 3+3 rule-based method, see \code{\link{threep3}} for more details.
 }
 \value{
-\code{bcrm} returns an object of class "bcrm" or "bcrm.sim"; the latter occuring when a simulation has been conducted (\code{simulate=TRUE}).
+\code{bcrm} returns an object of class "bcrm" or "bcrm.sim"; the latter occurring when a simulation has been conducted (\code{simulate=TRUE}).
 The function \code{\link{print}} (i.e. \code{\link{print.bcrm}} or \code{\link{print.bcrm.sim}}) can be used to obtain summary information about the design used, the data observed, current posterior estimates of toxicity, and the next recommended dose level. 
 
 An object of class "bcrm" is a list with the following components:
@@ -180,7 +185,7 @@ An object of class "bcrm" is a list with the following components:
 \item{sdose}{Standardised doses}
 \item{tox}{A vector of length \code{k} listing the number of patients who have experienced the outcome (toxicity) at each dose level \code{1,...,k}}
 \item{notox}{A vector of length \code{k} listing the number of patients who have not experienced the outcome (toxicity) at each dose level \code{1,...,k}}
-\item{ndose}{A list of lists containing for each cohort the components \code{ndose}, the dose level recommended for the next patient, \code{est}, the estimated probabilitieis of toxicity using the chosen metric (e.g. plugin, mean, quantile), \code{mean}, the posterior mean probability of toxicity at each dose, \code{sd}, the posterior standard deviation for probability of toxicity at each dose, \code{quantiles}, the posterior quantiles for probability of toxicity at each dose. This information is only provided for cohorts recruited subsequent to any data given using \code{tox} and \code{notox}. The first component relates to the prior information.}
+\item{ndose}{A list of lists containing for each cohort the components \code{ndose}, the dose level recommended for the next patient, \code{est}, the estimated probabilities of toxicity using the chosen metric (e.g. plugin, mean, quantile), \code{mean}, the posterior mean probability of toxicity at each dose, \code{sd}, the posterior standard deviation for probability of toxicity at each dose, \code{quantiles}, the posterior quantiles for probability of toxicity at each dose. This information is only provided for cohorts recruited subsequent to any data given using \code{tox} and \code{notox}. The first component relates to the prior information.}
 \item{constrain}{Whether a constrained CRM design was used}
 \item{start}{The starting dose for the latest run of the model if \code{constrain=TRUE}}
 \item{target.tox}{The target toxicity level}
@@ -201,6 +206,8 @@ An object of class "bcrm.sim" is a list of length \code{nsims}. Each component i
  Babb J., Rogatko A., Zacks S. Cancer phase I clinical trials: efficient dose escalation with overdose control. \emph{Statistics in Medicine} (1998) 17: 1103--1120.
        
  Neuenschwander B., Branson M., Gsponer T. Critical aspects of the Bayesian approach to phase I cancer trials. \emph{Statistics in Medicine} (2008) 27: 2420--2439.
+ 
+ Zohar S., Chevret S. The continual reassessment method: comparison of Bayesian stopping rules for dose-ranging studies. \emph{Statistics in Medicine} (2001) 20: 2827--2843.
 }
 
 \note{

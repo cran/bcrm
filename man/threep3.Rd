@@ -86,7 +86,7 @@ dose<-c(1,2.5,5,10,15,20,25,30,40,50,75,100)
 p.tox0<-c(0.010,0.015,0.020,0.025,0.030,0.040,0.050,0.100,0.170,0.300,0.400,0.500)
 
 \dontrun{
-design.threep3<-threep3(p.tox0,dose)
+design.threep3<-threep3(truep=p.tox0,start=1,dose=dose)
 print(design.threep3)
 plot(design.threep3)
 }

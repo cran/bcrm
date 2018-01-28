@@ -21,7 +21,7 @@ The estimated dose-toxicity curve using the Bayesian continuous reassessment met
 	Should the sequential dose trajectory of the recruited patients be plotted, along with the observed toxicities? Defaults to FALSE.
 }
   \item{file}{
-File name where the dose-response plots are stored, in a pdf format. The program will ammend the current sample size to the end of the file name.
+File name where the dose-response plots are stored, in a pdf format. The program will amend the current sample size to the end of the file name.
 }
  \item{...}{Further arguments passed to or from other methods}
 }
