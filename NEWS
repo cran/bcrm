@@ -1,3 +1,29 @@
+Version 0.5.1 (3rd April 2019)
+-------------
+* Minor bug in "nextdose" fixed, to ensure correct dose
+selected as starting dose if "start" not specified.
+* README file updated/re-knitted.
+
+Version 0.5.0 (1st April 2019)
+-------------
+* Restructuring of functions - many thanks to Harry Southworth for tidying up the package and reporting key bugs.
+* "only.below" option added to "bcrm", such that if TRUE and loss not used, next dose chosen is that with risk of DLT closest to AND below the Target Toxicity Level.
+* "threep3.start" option added to "bcrm" and "threep3", allowing specification of different start dose for 3+3 design with de-escalation permitted
+* "threep3.esc.only" option added to "bcrm" and "threep3", such that if TRUE, runs the 3+3 design with no de-escalation permitted; if FALSE, de-escalation is permitted.
+
+
+Version 0.4.9 (10th October 2018)
+-------------
+* Bug corrected in interactive version of bcrm to ensure updating of plots when option "plot = TRUE" is specified.
+* Installation procedure would fail if an old version of rlang was used. The package "rlang" is now Imported at installation.
+* In trial plots in interactive version of bcrm, previously only posterior median probabilities of DLT were shown as filled dots. The symbol for medians has been changed to black lines, and the user-specified estimate for the probability of DLT (plugin, mean) is shown as a filled point.
+
+
+Version 0.4.8 (4th October 2018)
+-------------
+* bug corrected in interactive version of bcrm where over-ridden dose choices were not correctly recorded in output data.frame. Thanks to Graham Wheeler for spotting this.
+
+
 Version 0.4.7 (28th January 2018)
 -------------
 * threep3 now works with any starting dose, not just the first. Thanks to Bernard North and Christina Yassouridis for spotting this bug.
