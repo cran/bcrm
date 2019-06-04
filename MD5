@@ -1,10 +1,10 @@
-cbf0c2c5f11f6b4a4ee83c75f08ff8c2 *DESCRIPTION
+38ce142f205e09a78db9c7fcb771215a *DESCRIPTION
 9fa9aed9596eece42015aafcb11493f8 *NAMESPACE
-eb1f702b3971c14dff02aa4864e3e005 *NEWS
+d3854a8979b5a48f1c9bb669dab0c32d *NEWS
 c1bc3df7bfec9c87dd82a2daa8a25db1 *R/bcrm-package.R
-41f0794cd0fcd5e580a3324fa1f6659e *R/bcrm.R
+157c818e5afcc2cff361b808edd862b2 *R/bcrm.R
 729f622408c3f1ea9303922443523905 *R/models.R
-8e405c8bcf1edce08cb74156103fef0b *R/nextdose.R
+9a128c3676d7765bfb855ee81c928196 *R/nextdose.R
 85d9fce25a1d2ad614204ead1f0ecab7 *R/posteriors.R
 9a6a3f772eee2b1d0557d7c187a7904c *R/simFun.R
 7d3c546ac4a8587a59f178c3e6a70465 *R/stopcheck.R
